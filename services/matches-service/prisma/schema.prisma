@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MatchStatus {
+  OPEN
+  FULL
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@schema("matches")
+}
+
+enum ParticipantStatus {
+  PENDING    // user requested to join, awaiting admin approval
+  INVITED    // admin invited this user, awaiting acceptance
+  APPROVED
+  REJECTED
+
+  @@schema("matches")
+}
+
+enum ParticipantType {
+  REGISTERED // authenticated user — counts toward stats
+  GUEST      // guest added by admin — name only, no stats
+
+  @@schema("matches")
+}
+
+enum Team {
+  TEAM_A
+  TEAM_B
+
+  @@schema("matches")
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PROFESSIONAL
+
+  @@schema("matches")
+}
+
+model Match {
+  id            String      @id @default(uuid())
+  sportId       String      @map("sport_id")
+  complexId     String      @map("complex_id")
+  courtId       String      @map("court_id")
+  adminUserId   String      @map("admin_user_id")
+  scheduledAt   DateTime    @map("scheduled_at")
+  maxPlayers    Int         @map("max_players")
+  minPlayers    Int         @map("min_players")
+  requiredLevel SkillLevel? @map("required_level")
+  status        MatchStatus @default(OPEN)
+  description   String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  participants MatchParticipant[]
+  result       MatchResult?
+
+  @@map("matches")
+  @@schema("matches")
+}
+
+model MatchParticipant {
+  id              String            @id @default(uuid())
+  matchId         String            @map("match_id")
+  // null for GUEST participants
+  userId          String?           @map("user_id")
+  participantType ParticipantType   @default(REGISTERED) @map("participant_type")
+  // only populated for GUEST participants
+  guestFirstName  String?           @map("guest_first_name")
+  guestLastName   String?           @map("guest_last_name")
+  status          ParticipantStatus @default(PENDING)
+  team            Team?
+  joinedAt        DateTime          @default(now()) @map("joined_at")
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  // DB-level uniqueness for registered users (userId IS NOT NULL)
+  // is enforced via a partial unique index created in migration:
+  // CREATE UNIQUE INDEX ... ON match_participants (match_id, user_id) WHERE user_id IS NOT NULL
+  @@map("match_participants")
+  @@schema("matches")
+}
+
+model MatchResult {
+  id         String   @id @default(uuid())
+  matchId    String   @unique @map("match_id")
+  sets       Json
+  winnerTeam Team     @map("winner_team")
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@map("match_results")
+  @@schema("matches")
+}

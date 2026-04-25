@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pivoo
+      POSTGRES_PASSWORD: pivoo_dev
+      POSTGRES_DB: pivoo
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pivoo']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      target: development
+    environment:
+      - DATABASE_URL=postgresql://pivoo:pivoo_dev@postgres:5432/pivoo?schema=auth
+      - JWT_SECRET=local_jwt_secret_change_in_prod
+      - JWT_EXPIRES_IN=15m
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - PORT=3001
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/auth-service:/app
+      - /app/node_modules
+
+  users-service:
+    build:
+      context: ./services/users-service
+      target: development
+    environment:
+      - DATABASE_URL=postgresql://pivoo:pivoo_dev@postgres:5432/pivoo?schema=users
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - PORT=3002
+    ports:
+      - '3002:3002'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/users-service:/app
+      - /app/node_modules
+
+  matches-service:
+    build:
+      context: ./services/matches-service
+      target: development
+    environment:
+      - DATABASE_URL=postgresql://pivoo:pivoo_dev@postgres:5432/pivoo?schema=matches
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - USERS_SERVICE_URL=http://users-service:3002
+      - SPORTS_SERVICE_URL=http://sports-service:3004
+      - COMPLEXES_SERVICE_URL=http://complexes-service:3005
+      - PORT=3003
+    ports:
+      - '3003:3003'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/matches-service:/app
+      - /app/node_modules
+
+  sports-service:
+    build:
+      context: ./services/sports-service
+      target: development
+    environment:
+      - DATABASE_URL=postgresql://pivoo:pivoo_dev@postgres:5432/pivoo?schema=sports
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - PORT=3004
+    ports:
+      - '3004:3004'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/sports-service:/app
+      - /app/node_modules
+
+  complexes-service:
+    build:
+      context: ./services/complexes-service
+      target: development
+    environment:
+      - DATABASE_URL=postgresql://pivoo:pivoo_dev@postgres:5432/pivoo?schema=complexes
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - PORT=3005
+    ports:
+      - '3005:3005'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/complexes-service:/app
+      - /app/node_modules
+
+  teams-service:
+    build:
+      context: ./services/teams-service
+      target: development
+    environment:
+      - DATABASE_URL=postgresql://pivoo:pivoo_dev@postgres:5432/pivoo?schema=teams
+      - JWT_SECRET=local_jwt_secret_change_in_prod
+      - MATCHES_SERVICE_URL=http://matches-service:3003
+      - PORT=3006
+    ports:
+      - '3006:3006'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/teams-service:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:

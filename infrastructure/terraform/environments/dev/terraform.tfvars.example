@@ -1,0 +1,5 @@
+aws_region      = "us-east-1"
+aws_account_id  = "123456789012"
+certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/your-cert-id"
+db_username     = "pivoo"
+db_password     = "change_this_strong_password"

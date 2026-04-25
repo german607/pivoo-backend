@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SportComplex {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  city      String
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(11, 8)
+  phone     String?
+  website   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  courts Court[]
+
+  @@map("sport_complexes")
+  @@schema("complexes")
+}
+
+model Court {
+  id         String       @id @default(uuid())
+  complexId  String       @map("complex_id")
+  sportId    String       @map("sport_id")
+  name       String
+  indoor     Boolean      @default(false)
+  isActive   Boolean      @default(true) @map("is_active")
+
+  complex SportComplex @relation(fields: [complexId], references: [id], onDelete: Cascade)
+
+  @@map("courts")
+  @@schema("complexes")
+}

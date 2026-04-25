@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PROFESSIONAL
+
+  @@schema("users")
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  name      String
+  avatarUrl String?  @map("avatar_url")
+  bio       String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  sportStats UserSportStats[]
+
+  @@map("user_profiles")
+  @@schema("users")
+}
+
+model UserSportStats {
+  id             String     @id @default(uuid())
+  userId         String     @map("user_id")
+  sportId        String     @map("sport_id")
+  matchesPlayed  Int        @default(0) @map("matches_played")
+  matchesWon     Int        @default(0) @map("matches_won")
+  rankingPoints  Int        @default(1000) @map("ranking_points")
+  level          SkillLevel @default(BEGINNER)
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sportId])
+  @@map("user_sport_stats")
+  @@schema("users")
+}

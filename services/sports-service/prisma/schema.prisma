@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SportName {
+  TENNIS
+  PADEL
+
+  @@schema("sports")
+}
+
+model Sport {
+  id          String    @id @default(uuid())
+  name        SportName @unique
+  minPlayers  Int       @map("min_players")
+  maxPlayers  Int       @map("max_players")
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("sports")
+  @@schema("sports")
+}
