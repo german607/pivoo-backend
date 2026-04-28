@@ -461,40 +461,6 @@ PORT=3001
 
 ---
 
-## 🌍 Variables de Entorno
-
-### Globales (PostgreSQL)
-
-```env
-POSTGRES_USER=pivoo
-POSTGRES_PASSWORD=pivoo_dev
-POSTGRES_DB=pivoo
-DATABASE_URL=postgresql://pivoo:pivoo_dev@postgres:5432/pivoo
-```
-
-### Auth Service
-
-```env
-DATABASE_URL=postgresql://pivoo:pivoo_dev@postgres:5432/pivoo?schema=auth
-JWT_SECRET=local_jwt_secret_change_in_prod
-JWT_REFRESH_SECRET=local_jwt_refresh_secret_change_in_prod
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
-PORT=3001
-```
-
-### Otros Servicios
-
-```env
-DATABASE_URL=postgresql://...?schema=<nombre_schema>
-JWT_SECRET=your_secret
-AUTH_SERVICE_URL=http://auth-service:3001
-USERS_SERVICE_URL=http://users-service:3002
-SPORTS_SERVICE_URL=http://sports-service:3004
-COMPLEXES_SERVICE_URL=http://complexes-service:3005
-PORT=3002|3003|3004|3005|3006
-```
-
 ---
 
 ## 💻 Desarrollo
