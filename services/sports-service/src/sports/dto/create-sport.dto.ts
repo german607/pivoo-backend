@@ -1,6 +1,6 @@
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { SportName } from '@prisma/client';
+import { SportName } from '../../generated/prisma';
 
 export class CreateSportDto {
   @ApiProperty({ enum: SportName })

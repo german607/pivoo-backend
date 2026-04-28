@@ -13,7 +13,7 @@ import { CreateMatchDto } from './dto/create-match.dto';
 import { RecordResultDto } from './dto/record-result.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { AddGuestDto } from './dto/add-guest.dto';
-import { MatchStatus, ParticipantStatus, ParticipantType, Team } from '@prisma/client';
+import { MatchStatus, ParticipantStatus, ParticipantType, Team } from '../generated/prisma';
 
 @Injectable()
 export class MatchesService {
@@ -109,7 +109,7 @@ export class MatchesService {
     if (match.adminUserId !== adminUserId) {
       throw new ForbiddenException('Only the match admin can cancel');
     }
-    if ([MatchStatus.COMPLETED, MatchStatus.CANCELLED].includes(match.status)) {
+    if (match.status === MatchStatus.COMPLETED || match.status === MatchStatus.CANCELLED) {
       throw new BadRequestException('Match cannot be cancelled');
     }
     return this.prisma.match.update({
@@ -396,7 +396,7 @@ export class MatchesService {
 
     const [result] = await this.prisma.$transaction([
       this.prisma.matchResult.create({
-        data: { matchId, sets: dto.sets, winnerTeam: dto.winnerTeam },
+        data: { matchId, sets: dto.sets as object[], winnerTeam: dto.winnerTeam },
       }),
       this.prisma.match.update({
         where: { id: matchId },

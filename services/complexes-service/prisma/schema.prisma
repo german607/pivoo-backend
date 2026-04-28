@@ -1,40 +1,167 @@
 generator client {
-  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/prisma"
+  provider        = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["complexes"]
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@schema("complexes")
+}
+
+enum TournamentFormat {
+  SINGLE_ELIMINATION
+  ROUND_ROBIN
+
+  @@schema("complexes")
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+
+  @@schema("complexes")
+}
+
+enum TournamentMatchStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  BYE
+
+  @@schema("complexes")
 }
 
 model SportComplex {
-  id        String   @id @default(uuid())
-  name      String
-  address   String
-  city      String
-  latitude  Decimal? @db.Decimal(10, 8)
-  longitude Decimal? @db.Decimal(11, 8)
-  phone     String?
-  website   String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid())
+  name        String
+  address     String
+  city        String
+  latitude    Decimal? @db.Decimal(10, 8)
+  longitude   Decimal? @db.Decimal(11, 8)
+  phone       String?
+  website     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  courts Court[]
+  courts      Court[]
+  tournaments Tournament[]
 
   @@map("sport_complexes")
   @@schema("complexes")
 }
 
 model Court {
-  id         String       @id @default(uuid())
-  complexId  String       @map("complex_id")
-  sportId    String       @map("sport_id")
-  name       String
-  indoor     Boolean      @default(false)
-  isActive   Boolean      @default(true) @map("is_active")
+  id        String       @id @default(uuid())
+  complexId String       @map("complex_id")
+  sportId   String       @map("sport_id")
+  name      String
+  indoor    Boolean      @default(false)
+  isActive  Boolean      @default(true) @map("is_active")
 
   complex SportComplex @relation(fields: [complexId], references: [id], onDelete: Cascade)
 
   @@map("courts")
+  @@schema("complexes")
+}
+
+model Tournament {
+  id                   String           @id @default(uuid())
+  complexId            String           @map("complex_id")
+  name                 String
+  sportId              String           @map("sport_id")
+  format               TournamentFormat @default(SINGLE_ELIMINATION)
+  status               TournamentStatus @default(DRAFT)
+  maxParticipants      Int              @map("max_participants")
+  registrationDeadline DateTime?        @map("registration_deadline")
+  startDate            DateTime         @map("start_date")
+  description          String?
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+
+  complex       SportComplex             @relation(fields: [complexId], references: [id])
+  registrations TournamentRegistration[]
+  matches       TournamentMatch[]
+  rankingPoints TournamentRankingPoint[]
+  results       TournamentResult[]
+
+  @@map("tournaments")
+  @@schema("complexes")
+}
+
+model TournamentRegistration {
+  id           String             @id @default(uuid())
+  tournamentId String             @map("tournament_id")
+  userId       String             @map("user_id")
+  status       RegistrationStatus @default(PENDING)
+  seed         Int?
+  registeredAt DateTime           @default(now()) @map("registered_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@map("tournament_registrations")
+  @@schema("complexes")
+}
+
+model TournamentMatch {
+  id           String                @id @default(uuid())
+  tournamentId String                @map("tournament_id")
+  round        Int
+  matchNumber  Int                   @map("match_number")
+  player1Id    String?               @map("player1_id")
+  player2Id    String?               @map("player2_id")
+  winnerId     String?               @map("winner_id")
+  status       TournamentMatchStatus @default(PENDING)
+  sets         Json?
+  courtId      String?               @map("court_id")
+  scheduledAt  DateTime?             @map("scheduled_at")
+  completedAt  DateTime?             @map("completed_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, round, matchNumber])
+  @@map("tournament_matches")
+  @@schema("complexes")
+}
+
+model TournamentRankingPoint {
+  id           String @id @default(uuid())
+  tournamentId String @map("tournament_id")
+  position     Int
+  points       Int
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, position])
+  @@map("tournament_ranking_points")
+  @@schema("complexes")
+}
+
+model TournamentResult {
+  id           String   @id @default(uuid())
+  tournamentId String   @map("tournament_id")
+  userId       String   @map("user_id")
+  position     Int
+  points       Int
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@map("tournament_results")
   @@schema("complexes")
 }

@@ -5,3 +5,8 @@ dist/
 *.log
 .turbo/
 coverage/
+
+# Prisma generated files
+**/generated/prisma/
+**/libquery_engine-*.node
+**/*.dylib.node

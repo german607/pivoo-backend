@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { SkillLevel } from '@prisma/client';
+import { SkillLevel } from '../generated/prisma';
 
 @Injectable()
 export class UsersService {

@@ -2,7 +2,7 @@ import {
   IsString, IsDateString, IsInt, IsOptional, IsEnum, Min, Max,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { SkillLevel } from '@prisma/client';
+import { SkillLevel } from '../../generated/prisma';
 
 export class CreateMatchDto {
   @ApiProperty()

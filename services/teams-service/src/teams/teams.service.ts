@@ -12,7 +12,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
-import { TeamMemberRole, TeamInviteStatus } from '@prisma/client';
+import { TeamInviteStatus } from '../generated/prisma';
+
+const MAX_MEMBERS = 2;
 
 @Injectable()
 export class TeamsService {
@@ -31,16 +33,13 @@ export class TeamsService {
   // Team CRUD
   // ──────────────────────────────────────────────────────────
 
-  async create(adminUserId: string, dto: CreateTeamDto) {
+  async create(userId: string, dto: CreateTeamDto) {
     return this.prisma.team.create({
       data: {
         name: dto.name,
         sportId: dto.sportId ?? null,
         color: dto.color ?? '#14B8A6',
-        adminUserId,
-        members: {
-          create: { userId: adminUserId, role: TeamMemberRole.ADMIN },
-        },
+        members: { create: { userId } },
       },
       include: { members: true },
     });
@@ -52,14 +51,14 @@ export class TeamsService {
       include: {
         team: {
           include: {
-            members: { select: { userId: true, role: true, joinedAt: true } },
+            members: { select: { userId: true, joinedAt: true } },
             _count: { select: { members: true } },
           },
         },
       },
       orderBy: { joinedAt: 'desc' },
     });
-    return memberships.map((m) => ({ ...m.team, myRole: m.role }));
+    return memberships.map((m) => m.team);
   }
 
   async findOne(id: string) {
@@ -67,8 +66,8 @@ export class TeamsService {
       where: { id },
       include: {
         members: {
-          select: { id: true, userId: true, role: true, joinedAt: true },
-          orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
+          select: { id: true, userId: true, joinedAt: true },
+          orderBy: { joinedAt: 'asc' },
         },
         invitations: {
           where: { status: TeamInviteStatus.PENDING },
@@ -80,17 +79,16 @@ export class TeamsService {
     return team;
   }
 
-  async update(id: string, adminUserId: string, dto: UpdateTeamDto) {
-    await this.assertAdmin(id, adminUserId);
+  async update(id: string, userId: string, dto: UpdateTeamDto) {
+    await this.assertMember(id, userId);
     return this.prisma.team.update({
       where: { id },
       data: { ...(dto.name && { name: dto.name }), ...(dto.color && { color: dto.color }) },
     });
   }
 
-  async disband(id: string, adminUserId: string) {
-    await this.assertAdmin(id, adminUserId);
-    // Cascade deletes members and invitations
+  async disband(id: string, userId: string) {
+    await this.assertMember(id, userId);
     await this.prisma.team.delete({ where: { id } });
   }
 
@@ -98,11 +96,24 @@ export class TeamsService {
   // Invite flow
   // ──────────────────────────────────────────────────────────
 
-  async inviteMember(teamId: string, adminUserId: string, dto: InviteMemberDto) {
-    await this.assertAdmin(teamId, adminUserId);
+  async inviteMember(teamId: string, userId: string, dto: InviteMemberDto) {
+    await this.assertMember(teamId, userId);
 
-    if (dto.userId === adminUserId) {
-      throw new BadRequestException('Admin is already in the team');
+    if (dto.userId === userId) {
+      throw new BadRequestException('You are already in the team');
+    }
+
+    const [memberCount, pendingCount] = await Promise.all([
+      this.prisma.teamMember.count({ where: { teamId } }),
+      this.prisma.teamInvitation.count({
+        where: { teamId, status: TeamInviteStatus.PENDING },
+      }),
+    ]);
+
+    if (memberCount + pendingCount >= MAX_MEMBERS) {
+      throw new BadRequestException(
+        `Team is full — max ${MAX_MEMBERS} members allowed`,
+      );
     }
 
     const alreadyMember = await this.prisma.teamMember.findUnique({
@@ -110,32 +121,22 @@ export class TeamsService {
     });
     if (alreadyMember) throw new ConflictException('User is already a team member');
 
-    const alreadyInvited = await this.prisma.teamInvitation.findUnique({
+    const existing = await this.prisma.teamInvitation.findUnique({
       where: { teamId_invitedUserId: { teamId, invitedUserId: dto.userId } },
     });
-    if (alreadyInvited?.status === TeamInviteStatus.PENDING) {
+    if (existing?.status === TeamInviteStatus.PENDING) {
       throw new ConflictException('User already has a pending invitation');
     }
 
-    // Upsert: re-invite if previously rejected
     return this.prisma.teamInvitation.upsert({
       where: { teamId_invitedUserId: { teamId, invitedUserId: dto.userId } },
-      create: {
-        teamId,
-        invitedUserId: dto.userId,
-        invitedByUserId: adminUserId,
-        status: TeamInviteStatus.PENDING,
-      },
-      update: {
-        invitedByUserId: adminUserId,
-        status: TeamInviteStatus.PENDING,
-        createdAt: new Date(),
-      },
+      create: { teamId, invitedUserId: dto.userId, invitedByUserId: userId },
+      update: { invitedByUserId: userId, status: TeamInviteStatus.PENDING, createdAt: new Date() },
     });
   }
 
-  async getPendingInvitations(teamId: string, adminUserId: string) {
-    await this.assertAdmin(teamId, adminUserId);
+  async getPendingInvitations(teamId: string, userId: string) {
+    await this.assertMember(teamId, userId);
     return this.prisma.teamInvitation.findMany({
       where: { teamId, status: TeamInviteStatus.PENDING },
       orderBy: { createdAt: 'desc' },
@@ -163,14 +164,32 @@ export class TeamsService {
       throw new BadRequestException('Invitation is no longer pending');
     }
 
-    await this.prisma.teamInvitation.update({
-      where: { id: invitationId },
-      data: { status: accept ? TeamInviteStatus.ACCEPTED : TeamInviteStatus.REJECTED },
-    });
-
     if (accept) {
-      await this.prisma.teamMember.create({
-        data: { teamId: invitation.teamId, userId, role: TeamMemberRole.MEMBER },
+      const memberCount = await this.prisma.teamMember.count({
+        where: { teamId: invitation.teamId },
+      });
+      if (memberCount >= MAX_MEMBERS) {
+        // Cancel the invite since the team filled up while this was pending
+        await this.prisma.teamInvitation.update({
+          where: { id: invitationId },
+          data: { status: TeamInviteStatus.REJECTED },
+        });
+        throw new BadRequestException('Team is already full');
+      }
+
+      await this.prisma.$transaction([
+        this.prisma.teamInvitation.update({
+          where: { id: invitationId },
+          data: { status: TeamInviteStatus.ACCEPTED },
+        }),
+        this.prisma.teamMember.create({
+          data: { teamId: invitation.teamId, userId },
+        }),
+      ]);
+    } else {
+      await this.prisma.teamInvitation.update({
+        where: { id: invitationId },
+        data: { status: TeamInviteStatus.REJECTED },
       });
     }
 
@@ -181,21 +200,23 @@ export class TeamsService {
   // Member management
   // ──────────────────────────────────────────────────────────
 
-  async removeMember(teamId: string, adminUserId: string, targetUserId: string) {
-    await this.assertAdmin(teamId, adminUserId);
+  async removeMember(teamId: string, requesterId: string, targetUserId: string) {
+    await this.assertMember(teamId, requesterId);
 
-    if (targetUserId === adminUserId) {
-      throw new BadRequestException('Admin cannot remove themselves — use disband to delete the team');
-    }
-
-    const member = await this.prisma.teamMember.findUnique({
+    const target = await this.prisma.teamMember.findUnique({
       where: { teamId_userId: { teamId, userId: targetUserId } },
     });
-    if (!member) throw new NotFoundException('Member not found');
+    if (!target) throw new NotFoundException('Member not found');
 
     await this.prisma.teamMember.delete({
       where: { teamId_userId: { teamId, userId: targetUserId } },
     });
+
+    // Auto-disband if the last member left
+    const remaining = await this.prisma.teamMember.count({ where: { teamId } });
+    if (remaining === 0) {
+      await this.prisma.team.delete({ where: { id: teamId } });
+    }
   }
 
   // ──────────────────────────────────────────────────────────
@@ -213,7 +234,7 @@ export class TeamsService {
         matchesLost: 0,
         winRate: 0,
         recentMatches: [],
-        note: 'Team needs at least 2 members to compute stats',
+        note: 'Team needs 2 members to compute stats',
       };
     }
 
@@ -234,12 +255,12 @@ export class TeamsService {
   // Private helpers
   // ──────────────────────────────────────────────────────────
 
-  private async assertAdmin(teamId: string, userId: string) {
+  private async assertMember(teamId: string, userId: string) {
     const member = await this.prisma.teamMember.findUnique({
       where: { teamId_userId: { teamId, userId } },
     });
-    if (!member || member.role !== TeamMemberRole.ADMIN) {
-      throw new ForbiddenException('Only the team admin can perform this action');
+    if (!member) {
+      throw new ForbiddenException('You are not a member of this team');
     }
   }
 }

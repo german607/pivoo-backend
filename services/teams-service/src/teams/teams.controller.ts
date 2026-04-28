@@ -37,7 +37,7 @@ export class TeamsController {
   // ──────────────────────────────────────────────────────────
 
   @Post()
-  @ApiOperation({ summary: 'Create a new team (caller becomes admin)' })
+  @ApiOperation({ summary: 'Create a team (max 2 members — doubles pairs)' })
   create(@Request() req: any, @Body() dto: CreateTeamDto) {
     return this.teamsService.create(req.user.userId, dto);
   }
@@ -49,7 +49,7 @@ export class TeamsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update team name or color (admin only)' })
+  @ApiOperation({ summary: 'Update team name or color (any member)' })
   update(
     @Param('id') id: string,
     @Request() req: any,
@@ -60,7 +60,7 @@ export class TeamsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Disband the team and remove all members (admin only)' })
+  @ApiOperation({ summary: 'Disband the team (any member)' })
   disband(@Param('id') id: string, @Request() req: any) {
     return this.teamsService.disband(id, req.user.userId);
   }
@@ -70,7 +70,7 @@ export class TeamsController {
   // ──────────────────────────────────────────────────────────
 
   @Post(':id/invitations')
-  @ApiOperation({ summary: 'Invite a registered user to the team (admin only)' })
+  @ApiOperation({ summary: 'Invite a user to the team — max 2 members total (any member)' })
   inviteMember(
     @Param('id') id: string,
     @Request() req: any,
@@ -80,7 +80,7 @@ export class TeamsController {
   }
 
   @Get(':id/invitations')
-  @ApiOperation({ summary: 'List pending invitations for this team (admin only)' })
+  @ApiOperation({ summary: 'List pending invitations for this team (any member)' })
   getPendingInvitations(@Param('id') id: string, @Request() req: any) {
     return this.teamsService.getPendingInvitations(id, req.user.userId);
   }
@@ -103,7 +103,7 @@ export class TeamsController {
 
   @Delete(':id/members/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove a member from the team (admin only)' })
+  @ApiOperation({ summary: 'Remove a member — or leave the team (use own userId). Auto-disbands if last member.' })
   removeMember(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -118,7 +118,7 @@ export class TeamsController {
 
   @Get(':id/stats')
   @ApiOperation({ summary: 'Get team stats computed from shared matches' })
-  @ApiQuery({ name: 'sportId', required: false, description: 'Filter by sport UUID' })
+  @ApiQuery({ name: 'sportId', required: false })
   getTeamStats(
     @Param('id') id: string,
     @Query('sportId') sportId?: string,

@@ -1,7 +1,7 @@
 import { IsArray, IsEnum, ValidateNested, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { Team } from '@prisma/client';
+import { Team } from '../../generated/prisma';
 
 class SetScoreDto {
   @ApiProperty()

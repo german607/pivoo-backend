@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEnum, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { Team } from '@prisma/client';
+import { Team } from '../../generated/prisma';
 
 export class AddGuestDto {
   @ApiProperty({ example: 'Carlos' })

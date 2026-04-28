@@ -10,7 +10,7 @@ import { InviteUserDto } from './dto/invite-user.dto';
 import { AddGuestDto } from './dto/add-guest.dto';
 import { TeamStatsQueryDto } from './dto/team-stats-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { MatchStatus, Team } from '@prisma/client';
+import { MatchStatus, Team } from '../generated/prisma';
 
 @ApiTags('matches')
 @Controller('matches')

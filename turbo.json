@@ -9,11 +9,13 @@
       "cache": false,
       "persistent": true
     },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "test": {
+    "lint": {},
+    "test": {},
+    "prisma:generate": {
       "dependsOn": ["^build"]
+    },
+    "prisma:migrate": {
+      "cache": false
     }
   }
 }
