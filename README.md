@@ -42,45 +42,86 @@ Pivoo Backend es una arquitectura de **microservicios escalable** construida con
 
 ## 🏗️ Arquitectura
 
-### Diagrama de Microservicios
+### Diagrama de Microservicios (Mermaid)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Cliente / Cliente Web                     │
-└────────────────────┬────────────────────────────────────────┘
-                     │ HTTP/REST
-┌────────────────────▼────────────────────────────────────────┐
-│                   API Gateway / Load Balancer                │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-        ┌────────────┼────────────┬────────────────┐
-        │            │            │                │
-        ▼            ▼            ▼                ▼
-   ┌─────────┐  ┌────────┐  ┌─────────┐   ┌──────────────┐
-   │ Auth    │  │ Users  │  │ Matches │   │ Sports       │
-   │ Service │  │Service │  │ Service │   │ Service      │
-   │ :3001   │  │ :3002  │  │ :3003   │   │ :3004        │
-   └────┬────┘  └───┬────┘  └────┬────┘   └──────┬───────┘
-        │           │            │               │
-        │      ┌────▼────┐       │               │
-        │      │ Complexes       │               │
-        │      │ Service         │               │
-        │      │ :3005   ◄───────┼──────────────┘
-        │      └────┬────┘       │
-        │           │       ┌────▼────┐
-        │           │       │  Teams   │
-        │           │       │ Service  │
-        │           │       │ :3006    │
-        │           │       └──────────┘
-        │           │
-        └─────┬─────┴─────────────┘
-              │
-              ▼
-         ┌──────────────────┐
-         │  PostgreSQL 16   │
-         │  (Schemas por    │
-         │   Servicio)      │
-         └──────────────────┘
+```mermaid
+graph TB
+    Client["🖥️ Cliente"]
+    
+    subgraph "API Gateway"
+        Gateway["API Gateway<br/>Load Balancer"]
+    end
+    
+    subgraph "Microservicios"
+        AuthSvc["🔐 Auth Service<br/>Puerto 3001<br/>JWT • Passport"]
+        UsersSvc["👥 Users Service<br/>Puerto 3002<br/>Gestión de Usuarios"]
+        MatchesSvc["⚽ Matches Service<br/>Puerto 3003<br/>Gestión de Partidos"]
+        SportsSvc["🏆 Sports Service<br/>Puerto 3004<br/>Gestión de Deportes"]
+        ComplexesSvc["🏟️ Complexes Service<br/>Puerto 3005<br/>Gestión de Complejos"]
+        TeamsSvc["👫 Teams Service<br/>Puerto 3006<br/>Gestión de Equipos"]
+    end
+    
+    subgraph "Datos Compartidos"
+        SharedPkg["📦 Shared Package<br/>Tipos Comunes<br/>DTOs • Interfaces"]
+    end
+    
+    subgraph "Infraestructura"
+        DB["🐘 PostgreSQL 16<br/>Base de Datos<br/>Schemas por Servicio"]
+        Cache["💾 Caché<br/>Opcional"]
+    end
+    
+    subgraph "DevOps"
+        Docker["🐳 Docker Compose<br/>Orquestación Local"]
+        Terraform["🏗️ Terraform<br/>IaC para AWS"]
+    end
+    
+    Client -->|HTTP/REST| Gateway
+    Gateway -->|Rutas| AuthSvc
+    Gateway -->|Rutas| UsersSvc
+    Gateway -->|Rutas| MatchesSvc
+    Gateway -->|Rutas| SportsSvc
+    Gateway -->|Rutas| ComplexesSvc
+    Gateway -->|Rutas| TeamsSvc
+    
+    AuthSvc -->|Valida JWT| UsersSvc
+    AuthSvc -->|Valida JWT| MatchesSvc
+    AuthSvc -->|Valida JWT| SportsSvc
+    AuthSvc -->|Valida JWT| ComplexesSvc
+    AuthSvc -->|Valida JWT| TeamsSvc
+    
+    MatchesSvc -->|HTTP| UsersSvc
+    MatchesSvc -->|HTTP| SportsSvc
+    MatchesSvc -->|HTTP| ComplexesSvc
+    TeamsSvc -->|HTTP| UsersSvc
+    
+    AuthSvc -->|Prisma ORM| DB
+    UsersSvc -->|Prisma ORM| DB
+    MatchesSvc -->|Prisma ORM| DB
+    SportsSvc -->|Prisma ORM| DB
+    ComplexesSvc -->|Prisma ORM| DB
+    TeamsSvc -->|Prisma ORM| DB
+    
+    AuthSvc --> SharedPkg
+    UsersSvc --> SharedPkg
+    MatchesSvc --> SharedPkg
+    SportsSvc --> SharedPkg
+    ComplexesSvc --> SharedPkg
+    TeamsSvc --> SharedPkg
+    
+    Docker -.->|Desarrolla localmente| AuthSvc
+    Terraform -.->|Deploy a AWS| AuthSvc
+    
+    style Client fill:#e1f5ff
+    style Gateway fill:#fff3e0
+    style AuthSvc fill:#f3e5f5
+    style UsersSvc fill:#f3e5f5
+    style MatchesSvc fill:#f3e5f5
+    style SportsSvc fill:#f3e5f5
+    style ComplexesSvc fill:#f3e5f5
+    style TeamsSvc fill:#f3e5f5
+    style DB fill:#e8f5e9
+    style Docker fill:#fff9c4
+    style Terraform fill:#fff9c4
 ```
 
 **Características de la arquitectura:**
