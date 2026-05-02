@@ -19,7 +19,8 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
 
   const port = process.env.PORT ?? 3001;
-  await app.listen(port);
+  console.log(`Starting auth service on port ${port}...`);
+  await app.listen(port,'0.0.0.0');
   console.log(`Auth service running on port ${port}`);
 }
 
