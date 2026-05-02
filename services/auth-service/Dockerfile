@@ -25,4 +25,4 @@ COPY package*.json ./
 COPY prisma ./prisma
 RUN chown -R appuser:appgroup /app
 USER appuser
-CMD ["node", "dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
