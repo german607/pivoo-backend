@@ -8,6 +8,7 @@ FROM base AS development
 COPY . .
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate
+EXPOSE 3004
 CMD ["npm", "run", "dev"]
 
 FROM base AS builder
@@ -19,6 +20,7 @@ RUN npm run build
 FROM node:20-alpine AS production
 RUN apk add --no-cache openssl && addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
+EXPOSE 3004
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY package*.json ./
