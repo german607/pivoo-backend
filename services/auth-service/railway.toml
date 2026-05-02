@@ -3,6 +3,6 @@ builder = "dockerfile"
 buildTarget = "production"
 
 [deploy]
-startCommand = "npm run build && node dist/main.js"
+startCommand = "cd services/auth-service && npx prisma db push --skip-generate && node dist/main.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
