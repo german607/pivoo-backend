@@ -3,6 +3,6 @@ builder = "dockerfile"
 buildTarget = "production"
 
 [deploy]
-startCommand = "npx prisma db push --skip-generate && node dist/main"
+startCommand = "node dist/main"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
