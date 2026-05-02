@@ -2,7 +2,7 @@ FROM node:20-alpine AS base
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --no-audit --no-fund
-RUN apt-get update && apt-get install -y openssl
+RUN apk add --no-cache openssl
 
 FROM base AS development
 COPY . .
