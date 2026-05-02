@@ -5,6 +5,7 @@ RUN npm install --no-audit --no-fund
 
 FROM base AS development
 COPY . .
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate
 CMD ["npm", "run", "dev"]
 
