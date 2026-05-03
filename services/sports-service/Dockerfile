@@ -5,15 +5,17 @@ COPY package*.json ./
 RUN npm install --no-audit --no-fund
 
 FROM base AS development
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
 COPY . .
-ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate
 EXPOSE 3004
 CMD ["npm", "run", "dev"]
 
 FROM base AS builder
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
 COPY . .
-ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate
 RUN npm run build
 
