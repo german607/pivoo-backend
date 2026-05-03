@@ -155,6 +155,20 @@ export class MatchesController {
   // Remove participant (admin removes anyone)
   // ──────────────────────────────────────────────────────────
 
+  @Patch(':id/participants/:participantId/team')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change a participant team (admin only)' })
+  @ApiQuery({ name: 'team', required: false, enum: Team })
+  changeParticipantTeam(
+    @Param('id') id: string,
+    @Param('participantId') participantId: string,
+    @Query('team') team: Team | undefined,
+    @Request() req: any,
+  ) {
+    return this.matchesService.changeParticipantTeam(id, participantId, req.user.userId, team ?? null);
+  }
+
   @Delete(':id/participants/:participantId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

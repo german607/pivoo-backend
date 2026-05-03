@@ -3,6 +3,7 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { SkillLevel } from '../../generated/prisma';
+import { Category, Gender } from '../../types/match.types';
 
 export class CreateMatchDto {
   @ApiProperty()
@@ -32,10 +33,20 @@ export class CreateMatchDto {
   @Min(2)
   minPlayers: number;
 
-  @ApiProperty({ enum: SkillLevel, required: false })
+  @ApiProperty({ enum: SkillLevel, required: false, description: 'Nivel requerido (excluyente con requiredCategory)' })
   @IsOptional()
   @IsEnum(SkillLevel)
   requiredLevel?: SkillLevel;
+
+  @ApiProperty({ enum: Category, required: false, description: 'Categoría requerida (excluyente con requiredLevel)' })
+  @IsOptional()
+  @IsEnum(Category)
+  requiredCategory?: Category;
+
+  @ApiProperty({ enum: Gender, required: false })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
 
   @ApiProperty({ required: false })
   @IsOptional()

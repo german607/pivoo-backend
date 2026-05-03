@@ -60,8 +60,23 @@ export class TournamentsService {
   // ─── Tournament lifecycle ────────────────────────────────────
 
   create(complexId: string, dto: CreateTournamentDto) {
+    const hasLevel = dto.level !== undefined;
+    const hasCategory = dto.category !== undefined;
+    if (!hasLevel && !hasCategory) {
+      throw new BadRequestException('Debe indicar nivel o categoría');
+    }
+    if (hasLevel && hasCategory) {
+      throw new BadRequestException('No puede indicar nivel y categoría al mismo tiempo');
+    }
+
+    const { startDate, registrationDeadline, ...rest } = dto;
     return this.prisma.tournament.create({
-      data: { ...dto, complexId, startDate: new Date(dto.startDate) },
+      data: {
+        ...rest,
+        complexId,
+        startDate: new Date(startDate),
+        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null,
+      },
     });
   }
 

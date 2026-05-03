@@ -118,6 +118,53 @@ CREATE TABLE IF NOT EXISTS complexes.tournament_results (
 );
 
 -- =============================================================
+-- 4. MATCHES SCHEMA — add missing columns to matches table
+-- =============================================================
+
+DO $$ BEGIN CREATE TYPE matches."SkillLevel" AS ENUM ('BEGINNER','INTERMEDIATE','ADVANCED','PROFESSIONAL'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE matches."Category"   AS ENUM ('PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SEPTIMA','OCTAVA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE matches."Gender"     AS ENUM ('MASCULINO','FEMENINO','MIXTO'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'required_level'
+  ) THEN
+    ALTER TABLE matches.matches ADD COLUMN required_level matches."SkillLevel";
+    RAISE NOTICE 'matches.matches: added required_level';
+  ELSE
+    RAISE NOTICE 'matches.matches: required_level already exists, skipping';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'required_category'
+  ) THEN
+    ALTER TABLE matches.matches ADD COLUMN required_category matches."Category";
+    RAISE NOTICE 'matches.matches: added required_category';
+  ELSE
+    RAISE NOTICE 'matches.matches: required_category already exists, skipping';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'gender'
+  ) THEN
+    ALTER TABLE matches.matches ADD COLUMN gender matches."Gender";
+    RAISE NOTICE 'matches.matches: added gender';
+  ELSE
+    RAISE NOTICE 'matches.matches: gender already exists, skipping';
+  END IF;
+END $$;
+
+-- =============================================================
 -- SUMMARY
 -- =============================================================
 DO $$
@@ -125,6 +172,8 @@ DECLARE
   has_rth        BOOLEAN;
   has_complex_ac BOOLEAN;
   has_tourns     BOOLEAN;
+  has_req_cat    BOOLEAN;
+  has_gender     BOOLEAN;
 BEGIN
   SELECT EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -138,6 +187,14 @@ BEGIN
     SELECT 1 FROM information_schema.tables
     WHERE table_schema = 'complexes' AND table_name = 'tournaments'
   ) INTO has_tourns;
-  RAISE NOTICE '✓ Migration done — auth_users.refresh_token_hash: %, complex_accounts: %, tournaments: %',
-    has_rth, has_complex_ac, has_tourns;
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'required_category'
+  ) INTO has_req_cat;
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'gender'
+  ) INTO has_gender;
+  RAISE NOTICE '✓ Migration done — auth_users.refresh_token_hash: %, complex_accounts: %, tournaments: %, matches.required_category: %, matches.gender: %',
+    has_rth, has_complex_ac, has_tourns, has_req_cat, has_gender;
 END $$;

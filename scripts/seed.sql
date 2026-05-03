@@ -35,6 +35,11 @@ DO $$ BEGIN CREATE TYPE complexes."TournamentStatus"   AS ENUM ('DRAFT','REGISTR
 DO $$ BEGIN CREATE TYPE complexes."TournamentFormat"   AS ENUM ('SINGLE_ELIMINATION','ROUND_ROBIN');                     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE complexes."RegistrationStatus" AS ENUM ('PENDING','APPROVED','REJECTED','WITHDRAWN');            EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE complexes."TournamentMatchStatus" AS ENUM ('PENDING','IN_PROGRESS','COMPLETED','BYE');           EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE matches."Category"             AS ENUM ('PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SEPTIMA','OCTAVA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE matches."Gender"               AS ENUM ('MASCULINO','FEMENINO','MIXTO');                           EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE complexes."SkillLevel"         AS ENUM ('BEGINNER','INTERMEDIATE','ADVANCED','PROFESSIONAL');                      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE complexes."Category"           AS ENUM ('PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SEPTIMA','OCTAVA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE complexes."Gender"             AS ENUM ('MASCULINO','FEMENINO','MIXTO');                           EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TYPE matches."ParticipantStatus" ADD VALUE IF NOT EXISTS 'INVITED'; EXCEPTION WHEN others THEN NULL; END $$;
 
@@ -132,6 +137,9 @@ CREATE TABLE IF NOT EXISTS complexes.tournaments (
   registration_deadline TIMESTAMPTZ,
   start_date            TIMESTAMPTZ                 NOT NULL,
   description           TEXT,
+  level                 complexes."SkillLevel",
+  category              complexes."Category",
+  gender                complexes."Gender",
   created_at            TIMESTAMPTZ                 NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ                 NOT NULL DEFAULT NOW()
 );
@@ -190,8 +198,10 @@ CREATE TABLE IF NOT EXISTS matches.matches (
   scheduled_at   TIMESTAMPTZ           NOT NULL,
   max_players    INT                   NOT NULL,
   min_players    INT                   NOT NULL,
-  required_level matches."SkillLevel",
-  status         matches."MatchStatus" NOT NULL DEFAULT 'OPEN',
+  required_level     matches."SkillLevel",
+  required_category  matches."Category",
+  gender             matches."Gender",
+  status             matches."MatchStatus" NOT NULL DEFAULT 'OPEN',
   description    TEXT,
   created_at     TIMESTAMPTZ           NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ           NOT NULL DEFAULT NOW()
