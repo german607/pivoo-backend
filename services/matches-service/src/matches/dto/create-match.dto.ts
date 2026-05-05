@@ -8,30 +8,37 @@ import { Category, Gender } from '../../types/match.types';
 export class CreateMatchDto {
   @ApiProperty()
   @IsString()
-  sportId: string;
+  sportId!: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  complexId: string;
+  complexId?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  courtId: string;
+  complexName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  courtId?: string;
 
   @ApiProperty({ example: '2026-05-01T10:00:00Z' })
   @IsDateString()
-  scheduledAt: string;
+  scheduledAt!: string;
 
   @ApiProperty({ example: 4 })
   @IsInt()
   @Min(2)
   @Max(8)
-  maxPlayers: number;
+  maxPlayers!: number;
 
   @ApiProperty({ example: 2 })
   @IsInt()
   @Min(2)
-  minPlayers: number;
+  minPlayers!: number;
 
   @ApiProperty({ enum: SkillLevel, required: false, description: 'Nivel requerido (excluyente con requiredCategory)' })
   @IsOptional()
