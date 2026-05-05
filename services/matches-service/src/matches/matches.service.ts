@@ -32,11 +32,15 @@ export class MatchesService {
   // ──────────────────────────────────────────────────────────
 
   async findAll(filters: { sportId?: string; complexId?: string; status?: MatchStatus }) {
+    const now = new Date();
+    const explicitStatus = filters.status;
     return this.prisma.match.findMany({
       where: {
         sportId: filters.sportId,
         complexId: filters.complexId,
-        status: filters.status ?? MatchStatus.OPEN,
+        status: explicitStatus ?? { in: [MatchStatus.OPEN, MatchStatus.FULL] },
+        // When no explicit status is requested, only return upcoming matches
+        ...(explicitStatus == null && { scheduledAt: { gte: now } }),
       },
       include: {
         participants: {
@@ -86,6 +90,15 @@ export class MatchesService {
   // ──────────────────────────────────────────────────────────
 
   async create(adminUserId: string, dto: CreateMatchDto) {
+    const hasLevel = dto.requiredLevel !== undefined;
+    const hasCategory = dto.requiredCategory !== undefined;
+    if (!hasLevel && !hasCategory) {
+      throw new BadRequestException('Debe indicar nivel o categoría');
+    }
+    if (hasLevel && hasCategory) {
+      throw new BadRequestException('No puede indicar nivel y categoría al mismo tiempo');
+    }
+
     return this.prisma.match.create({
       data: {
         ...dto,
@@ -102,6 +115,18 @@ export class MatchesService {
       },
       include: { participants: true },
     });
+  }
+
+  async expirePastMatches() {
+    const now = new Date();
+    const result = await this.prisma.match.updateMany({
+      where: {
+        scheduledAt: { lt: now },
+        status: { in: [MatchStatus.OPEN, MatchStatus.FULL] },
+      },
+      data: { status: MatchStatus.CANCELLED },
+    });
+    return { closed: result.count };
   }
 
   async cancelMatch(matchId: string, adminUserId: string) {
@@ -412,6 +437,23 @@ export class MatchesService {
   // ──────────────────────────────────────────────────────────
   // Private helpers
   // ──────────────────────────────────────────────────────────
+
+  async changeParticipantTeam(matchId: string, participantId: string, adminUserId: string, team: Team | null) {
+    const match = await this.findOne(matchId);
+    if (match.adminUserId !== adminUserId) {
+      throw new ForbiddenException('Only the match admin can change participant teams');
+    }
+
+    const participant = await this.prisma.matchParticipant.findFirst({
+      where: { id: participantId, matchId },
+    });
+    if (!participant) throw new NotFoundException('Participant not found');
+
+    return this.prisma.matchParticipant.update({
+      where: { id: participantId },
+      data: { team },
+    });
+  }
 
   private async assertSlotAvailable(matchId: string, maxPlayers: number) {
     const approvedCount = await this.prisma.matchParticipant.count({

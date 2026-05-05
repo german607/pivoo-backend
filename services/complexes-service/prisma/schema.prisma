@@ -10,6 +10,15 @@ datasource db {
   schemas  = ["complexes"]
 }
 
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PROFESSIONAL
+
+  @@schema("complexes")
+}
+
 enum TournamentStatus {
   DRAFT
   REGISTRATION_OPEN
@@ -23,6 +32,27 @@ enum TournamentStatus {
 enum TournamentFormat {
   SINGLE_ELIMINATION
   ROUND_ROBIN
+
+  @@schema("complexes")
+}
+
+enum Category {
+  PRIMERA
+  SEGUNDA
+  TERCERA
+  CUARTA
+  QUINTA
+  SEXTA
+  SEPTIMA
+  OCTAVA
+
+  @@schema("complexes")
+}
+
+enum Gender {
+  MASCULINO
+  FEMENINO
+  MIXTO
 
   @@schema("complexes")
 }
@@ -89,6 +119,9 @@ model Tournament {
   registrationDeadline DateTime?        @map("registration_deadline")
   startDate            DateTime         @map("start_date")
   description          String?
+  level                SkillLevel?
+  category             Category?
+  gender               Gender?
   createdAt            DateTime         @default(now()) @map("created_at")
   updatedAt            DateTime         @updatedAt @map("updated_at")
 

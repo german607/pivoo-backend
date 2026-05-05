@@ -1,8 +1,10 @@
 import {
   Controller, Get, Post, Patch, Delete, Body, Param, Query,
-  UseGuards, Request, HttpCode, HttpStatus,
+  UseGuards, Request, HttpCode, HttpStatus, Headers, UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+
 import { MatchesService } from './matches.service';
 import { CreateMatchDto } from './dto/create-match.dto';
 import { RecordResultDto } from './dto/record-result.dto';
@@ -15,7 +17,19 @@ import { MatchStatus, Team } from '../generated/prisma';
 @ApiTags('matches')
 @Controller('matches')
 export class MatchesController {
-  constructor(private matchesService: MatchesService) {}
+  constructor(
+    private matchesService: MatchesService,
+    private config: ConfigService,
+  ) {}
+
+  @Patch('expire-past')
+  @ApiOperation({ summary: 'Close all past OPEN/FULL matches (service key required)' })
+  expirePastMatches(@Headers('x-service-key') key: string) {
+    if (key !== this.config.get('SERVICE_KEY')) {
+      throw new UnauthorizedException('Invalid service key');
+    }
+    return this.matchesService.expirePastMatches();
+  }
 
   // ──────────────────────────────────────────────────────────
   // Match CRUD
@@ -154,6 +168,20 @@ export class MatchesController {
   // ──────────────────────────────────────────────────────────
   // Remove participant (admin removes anyone)
   // ──────────────────────────────────────────────────────────
+
+  @Patch(':id/participants/:participantId/team')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change a participant team (admin only)' })
+  @ApiQuery({ name: 'team', required: false, enum: Team })
+  changeParticipantTeam(
+    @Param('id') id: string,
+    @Param('participantId') participantId: string,
+    @Query('team') team: Team | undefined,
+    @Request() req: any,
+  ) {
+    return this.matchesService.changeParticipantTeam(id, participantId, req.user.userId, team ?? null);
+  }
 
   @Delete(':id/participants/:participantId')
   @UseGuards(JwtAuthGuard)

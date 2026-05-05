@@ -7,9 +7,13 @@ import {
   UseGuards,
   Request,
   Get,
+  Res,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
+import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -19,7 +23,10 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private config: ConfigService,
+  ) {}
 
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -69,5 +76,45 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Token is valid' })
   validate(@Request() req: any) {
     return req.user;
+  }
+
+  // ── Google OAuth ────────────────────────────────────────────
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @SkipThrottle()
+  @ApiOperation({ summary: 'Redirect to Google OAuth' })
+  googleLogin() {}
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @SkipThrottle()
+  @ApiExcludeEndpoint()
+  async googleCallback(@Request() req: any, @Res() res: Response) {
+    const tokens = await this.authService.loginWithOAuth(req.user);
+    const frontendUrl = this.config.get('FRONTEND_URL') ?? 'http://localhost:3000';
+    res.redirect(
+      `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
+    );
+  }
+
+  // ── Facebook OAuth ──────────────────────────────────────────
+
+  @Get('facebook')
+  @UseGuards(AuthGuard('facebook'))
+  @SkipThrottle()
+  @ApiOperation({ summary: 'Redirect to Facebook OAuth' })
+  facebookLogin() {}
+
+  @Get('facebook/callback')
+  @UseGuards(AuthGuard('facebook'))
+  @SkipThrottle()
+  @ApiExcludeEndpoint()
+  async facebookCallback(@Request() req: any, @Res() res: Response) {
+    const tokens = await this.authService.loginWithOAuth(req.user);
+    const frontendUrl = this.config.get('FRONTEND_URL') ?? 'http://localhost:3000';
+    res.redirect(
+      `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
+    );
   }
 }

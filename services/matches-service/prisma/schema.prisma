@@ -52,20 +52,43 @@ enum SkillLevel {
   @@schema("matches")
 }
 
+enum Category {
+  PRIMERA
+  SEGUNDA
+  TERCERA
+  CUARTA
+  QUINTA
+  SEXTA
+  SEPTIMA
+  OCTAVA
+
+  @@schema("matches")
+}
+
+enum Gender {
+  MASCULINO
+  FEMENINO
+  MIXTO
+
+  @@schema("matches")
+}
+
 model Match {
-  id            String      @id @default(uuid())
-  sportId       String      @map("sport_id")
-  complexId     String      @map("complex_id")
-  courtId       String      @map("court_id")
-  adminUserId   String      @map("admin_user_id")
-  scheduledAt   DateTime    @map("scheduled_at")
-  maxPlayers    Int         @map("max_players")
-  minPlayers    Int         @map("min_players")
-  requiredLevel SkillLevel? @map("required_level")
-  status        MatchStatus @default(OPEN)
-  description   String?
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  id               String      @id @default(uuid())
+  sportId          String      @map("sport_id")
+  complexId        String      @map("complex_id")
+  courtId          String      @map("court_id")
+  adminUserId      String      @map("admin_user_id")
+  scheduledAt      DateTime    @map("scheduled_at")
+  maxPlayers       Int         @map("max_players")
+  minPlayers       Int         @map("min_players")
+  requiredLevel    SkillLevel? @map("required_level")
+  requiredCategory Category?   @map("required_category")
+  gender           Gender?
+  status           MatchStatus @default(OPEN)
+  description      String?
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
 
   participants MatchParticipant[]
   result       MatchResult?
