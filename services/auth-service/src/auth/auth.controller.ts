@@ -98,23 +98,4 @@ export class AuthController {
     );
   }
 
-  // ── Facebook OAuth ──────────────────────────────────────────
-
-  @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
-  @SkipThrottle()
-  @ApiOperation({ summary: 'Redirect to Facebook OAuth' })
-  facebookLogin() {}
-
-  @Get('facebook/callback')
-  @UseGuards(AuthGuard('facebook'))
-  @SkipThrottle()
-  @ApiExcludeEndpoint()
-  async facebookCallback(@Request() req: any, @Res() res: Response) {
-    const tokens = await this.authService.loginWithOAuth(req.user);
-    const frontendUrl = this.config.get('FRONTEND_URL') ?? 'http://localhost:3000';
-    res.redirect(
-      `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
-    );
-  }
 }

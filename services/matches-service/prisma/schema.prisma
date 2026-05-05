@@ -76,8 +76,9 @@ enum Gender {
 model Match {
   id               String      @id @default(uuid())
   sportId          String      @map("sport_id")
-  complexId        String      @map("complex_id")
-  courtId          String      @map("court_id")
+  complexId        String?     @map("complex_id")
+  complexName      String?     @map("complex_name")
+  courtId          String?     @map("court_id")
   adminUserId      String      @map("admin_user_id")
   scheduledAt      DateTime    @map("scheduled_at")
   maxPlayers       Int         @map("max_players")
