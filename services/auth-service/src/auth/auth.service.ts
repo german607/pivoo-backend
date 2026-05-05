@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -39,9 +40,40 @@ export class AuthService {
       where: { email: dto.email },
     });
     if (!user || !user.isActive) throw new UnauthorizedException('Invalid credentials');
+    if (!user.passwordHash) throw new BadRequestException('This account uses social login');
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
+
+    const tokens = await this.generateTokens(user.id, user.email);
+    await this.saveRefreshTokenHash(user.id, tokens.refreshToken);
+    return tokens;
+  }
+
+  async loginWithOAuth(profile: { provider: string; providerId: string; email: string }) {
+    let user = await this.prisma.authUser.findFirst({
+      where: { provider: profile.provider, providerId: profile.providerId },
+    });
+
+    if (!user && profile.email) {
+      const byEmail = await this.prisma.authUser.findUnique({ where: { email: profile.email } });
+      if (byEmail) {
+        user = await this.prisma.authUser.update({
+          where: { id: byEmail.id },
+          data: { provider: profile.provider, providerId: profile.providerId },
+        });
+      }
+    }
+
+    if (!user) {
+      user = await this.prisma.authUser.create({
+        data: {
+          email: profile.email,
+          provider: profile.provider,
+          providerId: profile.providerId,
+        },
+      });
+    }
 
     const tokens = await this.generateTokens(user.id, user.email);
     await this.saveRefreshTokenHash(user.id, tokens.refreshToken);

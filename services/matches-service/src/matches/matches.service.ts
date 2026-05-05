@@ -32,11 +32,15 @@ export class MatchesService {
   // ──────────────────────────────────────────────────────────
 
   async findAll(filters: { sportId?: string; complexId?: string; status?: MatchStatus }) {
+    const now = new Date();
+    const explicitStatus = filters.status;
     return this.prisma.match.findMany({
       where: {
         sportId: filters.sportId,
         complexId: filters.complexId,
-        status: filters.status ?? MatchStatus.OPEN,
+        status: explicitStatus ?? { in: [MatchStatus.OPEN, MatchStatus.FULL] },
+        // When no explicit status is requested, only return upcoming matches
+        ...(explicitStatus == null && { scheduledAt: { gte: now } }),
       },
       include: {
         participants: {
@@ -111,6 +115,18 @@ export class MatchesService {
       },
       include: { participants: true },
     });
+  }
+
+  async expirePastMatches() {
+    const now = new Date();
+    const result = await this.prisma.match.updateMany({
+      where: {
+        scheduledAt: { lt: now },
+        status: { in: [MatchStatus.OPEN, MatchStatus.FULL] },
+      },
+      data: { status: MatchStatus.CANCELLED },
+    });
+    return { closed: result.count };
   }
 
   async cancelMatch(matchId: string, adminUserId: string) {
