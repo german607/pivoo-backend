@@ -9,10 +9,14 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async createProfile(userId: string, dto: CreateProfileDto) {
-    const existing = await this.prisma.userProfile.findFirst({
-      where: { OR: [{ id: userId }, { email: dto.email }, { username: dto.username }] },
-    });
-    if (existing) throw new ConflictException('Profile already exists or username taken');
+    const byId = await this.prisma.userProfile.findUnique({ where: { id: userId } });
+    if (byId) throw new ConflictException('profile_exists');
+
+    const byEmail = await this.prisma.userProfile.findUnique({ where: { email: dto.email } });
+    if (byEmail) throw new ConflictException('email_taken');
+
+    const byUsername = await this.prisma.userProfile.findUnique({ where: { username: dto.username } });
+    if (byUsername) throw new ConflictException('username_taken');
 
     return this.prisma.userProfile.create({
       data: { id: userId, ...dto },

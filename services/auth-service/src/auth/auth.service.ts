@@ -106,16 +106,28 @@ export class AuthService {
     accessToken: string,
     profile: { email: string; displayName?: string; avatarUrl?: string },
   ) {
-    const username = profile.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') + '_' + userId.slice(0, 6);
-    const name = profile.displayName ?? profile.email.split('@')[0];
+    const base = profile.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
+    const name = profile.displayName ?? base;
+    const uuidStripped = userId.replace(/-/g, '');
 
-    await firstValueFrom(
-      this.http.post(
-        `${this.usersServiceUrl}/api/v1/users`,
-        { email: profile.email, username, name, avatarUrl: profile.avatarUrl ?? null },
-        { headers: { Authorization: `Bearer ${accessToken}` } },
-      ),
-    ).catch(() => null);
+    // Try with increasing suffix length until username is unique (max 3 attempts)
+    for (let len = 6; len <= 12; len += 3) {
+      const username = `${base}_${uuidStripped.slice(0, len)}`;
+      const res = await firstValueFrom(
+        this.http.post(
+          `${this.usersServiceUrl}/api/v1/users`,
+          { email: profile.email, username, name, avatarUrl: profile.avatarUrl ?? null },
+          { headers: { Authorization: `Bearer ${accessToken}` } },
+        ),
+      ).catch((err) => err?.response);
+
+      const status = res?.status ?? res?.data?.statusCode;
+      const message = res?.data?.message;
+      if (!status || status === 201) return;
+      // profile_exists or email_taken = same user already has a profile, stop
+      if (status === 409 && message !== 'username_taken') return;
+      // username_taken = collision, retry with longer suffix
+    }
   }
 
   async refresh(refreshToken: string) {
