@@ -212,6 +212,19 @@ BEGIN
   END IF;
 END $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'complex_name'
+  ) THEN
+    ALTER TABLE matches.matches ADD COLUMN complex_name TEXT;
+    RAISE NOTICE 'matches.matches: added complex_name';
+  ELSE
+    RAISE NOTICE 'matches.matches: complex_name already exists, skipping';
+  END IF;
+END $$;
+
 -- =============================================================
 -- SUMMARY
 -- =============================================================
