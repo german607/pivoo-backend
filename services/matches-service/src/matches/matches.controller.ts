@@ -48,6 +48,14 @@ export class MatchesController {
     return this.matchesService.findAll({ sportId, complexId, status });
   }
 
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all matches for the authenticated user (all statuses, ordered by date desc)' })
+  findMine(@Request() req: any) {
+    return this.matchesService.findMine(req.user.userId);
+  }
+
   // Must be declared before :id to avoid "team-stats" being matched as an id
   @Get('team-stats')
   @ApiOperation({ summary: 'Compute stats for a set of users playing together (used by teams-service)' })

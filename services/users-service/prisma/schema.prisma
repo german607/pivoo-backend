@@ -19,6 +19,19 @@ enum SkillLevel {
   @@schema("users")
 }
 
+enum Category {
+  PRIMERA
+  SEGUNDA
+  TERCERA
+  CUARTA
+  QUINTA
+  SEXTA
+  SEPTIMA
+  OCTAVA
+
+  @@schema("users")
+}
+
 model UserProfile {
   id        String   @id @default(uuid())
   email     String   @unique

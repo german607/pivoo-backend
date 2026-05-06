@@ -31,6 +31,31 @@ export class MatchesService {
   // Queries
   // ──────────────────────────────────────────────────────────
 
+  async findMine(userId: string) {
+    return this.prisma.match.findMany({
+      where: {
+        participants: {
+          some: { userId, status: ParticipantStatus.APPROVED },
+        },
+      },
+      include: {
+        participants: {
+          where: { status: ParticipantStatus.APPROVED },
+          select: {
+            id: true,
+            userId: true,
+            participantType: true,
+            guestFirstName: true,
+            guestLastName: true,
+            team: true,
+          },
+        },
+        result: true,
+      },
+      orderBy: { scheduledAt: 'desc' },
+    });
+  }
+
   async findAll(filters: { sportId?: string; complexId?: string; status?: MatchStatus }) {
     const now = new Date();
     const explicitStatus = filters.status;
