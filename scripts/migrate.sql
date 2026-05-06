@@ -225,6 +225,32 @@ BEGIN
   END IF;
 END $$;
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'complex_id' AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE matches.matches ALTER COLUMN complex_id DROP NOT NULL;
+    RAISE NOTICE 'matches.matches: complex_id is now nullable';
+  ELSE
+    RAISE NOTICE 'matches.matches: complex_id already nullable, skipping';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'court_id' AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE matches.matches ALTER COLUMN court_id DROP NOT NULL;
+    RAISE NOTICE 'matches.matches: court_id is now nullable';
+  ELSE
+    RAISE NOTICE 'matches.matches: court_id already nullable, skipping';
+  END IF;
+END $$;
+
 -- =============================================================
 -- SUMMARY
 -- =============================================================

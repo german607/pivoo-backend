@@ -6,18 +6,25 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
 import * as bcrypt from 'bcryptjs';
+import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly usersServiceUrl: string;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private config: ConfigService,
-  ) {}
+    private http: HttpService,
+  ) {
+    this.usersServiceUrl = this.config.get('USERS_SERVICE_URL') ?? 'http://users-service:3002';
+  }
 
   async register(dto: RegisterDto) {
     const existing = await this.prisma.authUser.findUnique({
@@ -50,7 +57,15 @@ export class AuthService {
     return tokens;
   }
 
-  async loginWithOAuth(profile: { provider: string; providerId: string; email: string }) {
+  async loginWithOAuth(profile: {
+    provider: string;
+    providerId: string;
+    email: string;
+    displayName?: string;
+    avatarUrl?: string;
+  }) {
+    let isNewUser = false;
+
     let user = await this.prisma.authUser.findFirst({
       where: { provider: profile.provider, providerId: profile.providerId },
     });
@@ -73,11 +88,34 @@ export class AuthService {
           providerId: profile.providerId,
         },
       });
+      isNewUser = true;
     }
 
     const tokens = await this.generateTokens(user.id, user.email);
     await this.saveRefreshTokenHash(user.id, tokens.refreshToken);
+
+    if (isNewUser) {
+      await this.createUserProfile(user.id, tokens.accessToken, profile);
+    }
+
     return tokens;
+  }
+
+  private async createUserProfile(
+    userId: string,
+    accessToken: string,
+    profile: { email: string; displayName?: string; avatarUrl?: string },
+  ) {
+    const username = profile.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') + '_' + userId.slice(0, 6);
+    const name = profile.displayName ?? profile.email.split('@')[0];
+
+    await firstValueFrom(
+      this.http.post(
+        `${this.usersServiceUrl}/api/v1/users`,
+        { email: profile.email, username, name, avatarUrl: profile.avatarUrl ?? null },
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      ),
+    ).catch(() => null);
   }
 
   async refresh(refreshToken: string) {
