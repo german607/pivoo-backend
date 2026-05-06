@@ -21,6 +21,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback,
   ) {
     const email = profile.emails?.[0]?.value;
-    done(null, { provider: 'google', providerId: profile.id, email });
+    const displayName = profile.displayName ?? profile.name?.givenName ?? email?.split('@')[0];
+    const avatarUrl = profile.photos?.[0]?.value;
+    done(null, { provider: 'google', providerId: profile.id, email, displayName, avatarUrl });
   }
 }
