@@ -56,15 +56,15 @@ export class MatchesService {
     });
   }
 
-  async findAll(filters: { sportId?: string; complexId?: string; status?: MatchStatus }) {
+  async findAll(filters: { sportId?: string; complexId?: string; status?: MatchStatus; country?: string }) {
     const now = new Date();
     const explicitStatus = filters.status;
     return this.prisma.match.findMany({
       where: {
         sportId: filters.sportId,
         complexId: filters.complexId,
+        ...(filters.country && { country: filters.country }),
         status: explicitStatus ?? { in: [MatchStatus.OPEN, MatchStatus.FULL] },
-        // When no explicit status is requested, only return upcoming matches
         ...(explicitStatus == null && { scheduledAt: { gte: now } }),
       },
       include: {
@@ -124,10 +124,13 @@ export class MatchesService {
       throw new BadRequestException('No puede indicar nivel y categoría al mismo tiempo');
     }
 
+    const country = await this.fetchUserCountry(adminUserId);
+
     return this.prisma.match.create({
       data: {
         ...dto,
         adminUserId,
+        country,
         scheduledAt: new Date(dto.scheduledAt),
         participants: {
           create: {
@@ -140,6 +143,17 @@ export class MatchesService {
       },
       include: { participants: true },
     });
+  }
+
+  private async fetchUserCountry(userId: string): Promise<string | null> {
+    try {
+      const res = await firstValueFrom(
+        this.http.get(`${this.usersServiceUrl}/api/v1/users/${userId}`),
+      );
+      return (res.data?.country as string | null) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async expirePastMatches() {

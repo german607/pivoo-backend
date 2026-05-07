@@ -27,15 +27,16 @@ export class TournamentsService {
 
   // ─── Queries ────────────────────────────────────────────────
 
-  findAll(filters: { complexId?: string; sportId?: string; status?: TournamentStatus }) {
+  findAll(filters: { complexId?: string; sportId?: string; status?: TournamentStatus; country?: string }) {
     return this.prisma.tournament.findMany({
       where: {
         complexId: filters.complexId,
         sportId: filters.sportId,
         status: filters.status,
+        ...(filters.country && { complex: { country: filters.country } }),
       },
       include: {
-        complex: { select: { name: true, city: true } },
+        complex: { select: { name: true, city: true, country: true } },
         _count: { select: { registrations: true } },
       },
       orderBy: { startDate: 'asc' },
@@ -46,7 +47,7 @@ export class TournamentsService {
     const t = await this.prisma.tournament.findUnique({
       where: { id },
       include: {
-        complex: { select: { name: true, city: true } },
+        complex: { select: { name: true, city: true, country: true } },
         registrations: { orderBy: { seed: 'asc' } },
         matches: { orderBy: [{ round: 'asc' }, { matchNumber: 'asc' }] },
         rankingPoints: { orderBy: { position: 'asc' } },

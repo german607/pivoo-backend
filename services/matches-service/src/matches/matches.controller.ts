@@ -11,7 +11,8 @@ import { RecordResultDto } from './dto/record-result.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { AddGuestDto } from './dto/add-guest.dto';
 import { TeamStatsQueryDto } from './dto/team-stats-query.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { JwtAuthGuard, OptionalJwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { getClientIp, getCountryFromIp } from '../common/geo';
 import { MatchStatus, Team } from '../generated/prisma';
 
 @ApiTags('matches')
@@ -36,16 +37,25 @@ export class MatchesController {
   // ──────────────────────────────────────────────────────────
 
   @Get()
-  @ApiOperation({ summary: 'List open matches with optional filters' })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'List open matches with optional filters. Authenticated users auto-filter by their country.' })
   @ApiQuery({ name: 'sportId', required: false })
   @ApiQuery({ name: 'complexId', required: false })
   @ApiQuery({ name: 'status', required: false, enum: MatchStatus })
+  @ApiQuery({ name: 'country', required: false, description: 'ISO country code override (e.g. UY, AR, ES)' })
   findAll(
+    @Request() req: any,
     @Query('sportId') sportId?: string,
     @Query('complexId') complexId?: string,
     @Query('status') status?: MatchStatus,
+    @Query('country') country?: string,
   ) {
-    return this.matchesService.findAll({ sportId, complexId, status });
+    const effectiveCountry =
+      country ??
+      (req.user?.country as string | null) ??
+      getCountryFromIp(getClientIp(req)) ??
+      undefined;
+    return this.matchesService.findAll({ sportId, complexId, status, country: effectiveCountry });
   }
 
   @Get('mine')

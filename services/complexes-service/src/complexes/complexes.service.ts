@@ -7,9 +7,12 @@ import { CreateCourtDto } from './dto/create-court.dto';
 export class ComplexesService {
   constructor(private prisma: PrismaService) {}
 
-  findAll(city?: string) {
+  findAll(country?: string, city?: string) {
     return this.prisma.sportComplex.findMany({
-      where: city ? { city: { contains: city, mode: 'insensitive' } } : undefined,
+      where: {
+        ...(country && { country }),
+        ...(city && { city: { contains: city, mode: 'insensitive' } }),
+      },
       include: { courts: true },
       orderBy: { name: 'asc' },
     });

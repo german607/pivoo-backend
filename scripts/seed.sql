@@ -24,6 +24,7 @@ CREATE SCHEMA IF NOT EXISTS teams;
 -- 2. ENUMS
 -- =============================================================
 DO $$ BEGIN CREATE TYPE users."SkillLevel"            AS ENUM ('BEGINNER','INTERMEDIATE','ADVANCED','PROFESSIONAL');    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE users."Category"              AS ENUM ('PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SEPTIMA','OCTAVA');                     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE sports."SportName"             AS ENUM ('TENNIS','PADEL');                                       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE matches."MatchStatus"          AS ENUM ('OPEN','FULL','IN_PROGRESS','COMPLETED','CANCELLED');    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE matches."ParticipantStatus"    AS ENUM ('PENDING','INVITED','APPROVED','REJECTED');              EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -77,6 +78,10 @@ CREATE TABLE IF NOT EXISTS users.user_profiles (
   name       TEXT        NOT NULL,
   avatar_url TEXT,
   bio        TEXT,
+  country    TEXT,
+  city       TEXT,
+  phone      TEXT,
+  birth_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -89,6 +94,7 @@ CREATE TABLE IF NOT EXISTS users.user_sport_stats (
   matches_won    INT                NOT NULL DEFAULT 0,
   ranking_points INT                NOT NULL DEFAULT 1000,
   level          users."SkillLevel" NOT NULL DEFAULT 'BEGINNER',
+  category       users."Category",
   updated_at     TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
   UNIQUE(user_id, sport_id)
 );
@@ -109,6 +115,7 @@ CREATE TABLE IF NOT EXISTS complexes.sport_complexes (
   name       TEXT        NOT NULL,
   address    TEXT        NOT NULL,
   city       TEXT        NOT NULL,
+  country    TEXT,
   latitude   DECIMAL(10,8),
   longitude  DECIMAL(11,8),
   phone      TEXT,
@@ -192,8 +199,9 @@ CREATE TABLE IF NOT EXISTS complexes.tournament_results (
 CREATE TABLE IF NOT EXISTS matches.matches (
   id             TEXT                  PRIMARY KEY,
   sport_id       TEXT                  NOT NULL,
-  complex_id     TEXT                  NOT NULL,
-  court_id       TEXT                  NOT NULL,
+  complex_id     TEXT,
+  court_id       TEXT,
+  complex_name   TEXT,
   admin_user_id  TEXT                  NOT NULL,
   scheduled_at   TIMESTAMPTZ           NOT NULL,
   max_players    INT                   NOT NULL,
@@ -201,6 +209,7 @@ CREATE TABLE IF NOT EXISTS matches.matches (
   required_level     matches."SkillLevel",
   required_category  matches."Category",
   gender             matches."Gender",
+  country        TEXT,
   status             matches."MatchStatus" NOT NULL DEFAULT 'OPEN',
   description    TEXT,
   created_at     TIMESTAMPTZ           NOT NULL DEFAULT NOW(),
@@ -316,9 +325,9 @@ INSERT INTO users.user_sport_stats (id, user_id, sport_id, matches_played, match
 ON CONFLICT DO NOTHING;
 
 -- ── Complexes ─────────────────────────────────────────────────
-INSERT INTO complexes.sport_complexes (id, name, address, city, latitude, longitude, phone, website, created_at, updated_at) VALUES
-  ('bb000001-0000-0000-0000-000000000001', 'SportClub Las Palmas',  'Calle del Deporte 15', 'Madrid', 40.41650000, -3.70360000, '+34 91 234 5678', 'https://sportclublaspalmas.es', NOW(), NOW()),
-  ('bb000002-0000-0000-0000-000000000002', 'Centro de Pádel Norte', 'Avenida Norte 88',     'Madrid', 40.46200000, -3.69150000, '+34 91 876 5432', NULL,                            NOW(), NOW())
+INSERT INTO complexes.sport_complexes (id, name, address, city, country, latitude, longitude, phone, website, created_at, updated_at) VALUES
+  ('bb000001-0000-0000-0000-000000000001', 'SportClub Las Palmas',  'Calle del Deporte 15', 'Madrid', 'ES', 40.41650000, -3.70360000, '+34 91 234 5678', 'https://sportclublaspalmas.es', NOW(), NOW()),
+  ('bb000002-0000-0000-0000-000000000002', 'Centro de Pádel Norte', 'Avenida Norte 88',     'Madrid', 'ES', 40.46200000, -3.69150000, '+34 91 876 5432', NULL,                            NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 -- ── Courts ────────────────────────────────────────────────────
@@ -622,6 +631,216 @@ INSERT INTO teams.team_invitations (id, team_id, invited_user_id, invited_by_use
   ('ii000001-0000-0000-0000-000000000001', 'ee000001-0000-0000-0000-000000000001', '44444444-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111', 'REJECTED'),
   -- Ases Solitarios invitó a diana (pendiente)
   ('ii000002-0000-0000-0000-000000000002', 'ee000003-0000-0000-0000-000000000003', '44444444-4444-4444-4444-444444444444', '33333333-3333-3333-3333-333333333333', 'PENDING')
+ON CONFLICT DO NOTHING;
+
+-- =============================================================
+-- 5. DATOS URUGUAYOS
+-- 6 usuarios de Montevideo/Maldonado, 2 complejos UY, torneos y partidos
+-- =============================================================
+
+-- ── Auth users ────────────────────────────────────────────────
+INSERT INTO auth.auth_users (id, email, password_hash, is_active, created_at, updated_at) VALUES
+  ('77777777-7777-7777-7777-777777777777', 'santiago@pivoo.com',  '$2a$10$FU.17fYVAWC5dOiWkC64xuwKGBGPoKZNbyaj5lwaB1PnsxwBnr5ny', TRUE, NOW(), NOW()),
+  ('88888888-8888-8888-8888-888888888888', 'valentina@pivoo.com', '$2a$10$FU.17fYVAWC5dOiWkC64xuwKGBGPoKZNbyaj5lwaB1PnsxwBnr5ny', TRUE, NOW(), NOW()),
+  ('99999999-9999-9999-9999-999999999999', 'matias@pivoo.com',    '$2a$10$FU.17fYVAWC5dOiWkC64xuwKGBGPoKZNbyaj5lwaB1PnsxwBnr5ny', TRUE, NOW(), NOW()),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'lucia@pivoo.com',     '$2a$10$FU.17fYVAWC5dOiWkC64xuwKGBGPoKZNbyaj5lwaB1PnsxwBnr5ny', TRUE, NOW(), NOW()),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'gonzalo@pivoo.com',   '$2a$10$FU.17fYVAWC5dOiWkC64xuwKGBGPoKZNbyaj5lwaB1PnsxwBnr5ny', TRUE, NOW(), NOW()),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'florencia@pivoo.com', '$2a$10$FU.17fYVAWC5dOiWkC64xuwKGBGPoKZNbyaj5lwaB1PnsxwBnr5ny', TRUE, NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+-- ── Complex accounts ─────────────────────────────────────────
+INSERT INTO auth.complex_accounts (id, email, password_hash, complex_id, is_active, created_at, updated_at) VALUES
+  ('ca000003-0000-0000-0000-000000000003', 'admin@ctcarrasco.com.uy',      '$2a$10$FU.17fYVAWC5dOiWkC64xuwKGBGPoKZNbyaj5lwaB1PnsxwBnr5ny', 'bb000003-0000-0000-0000-000000000003', TRUE, NOW(), NOW()),
+  ('ca000004-0000-0000-0000-000000000004', 'admin@padel-maldonado.com.uy', '$2a$10$FU.17fYVAWC5dOiWkC64xuwKGBGPoKZNbyaj5lwaB1PnsxwBnr5ny', 'bb000004-0000-0000-0000-000000000004', TRUE, NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+-- ── Complejos uruguayos ───────────────────────────────────────
+INSERT INTO complexes.sport_complexes (id, name, address, city, country, latitude, longitude, phone, website, created_at, updated_at) VALUES
+  ('bb000003-0000-0000-0000-000000000003', 'Club de Tenis Carrasco', 'Rambla de las Pitangas 1220', 'Montevideo', 'UY', -34.89200000, -56.01500000, '+598 2601 1234', 'https://ctcarrasco.com.uy', NOW(), NOW()),
+  ('bb000004-0000-0000-0000-000000000004', 'Pádel Maldonado',         'Av. Roosevelt 3540',          'Maldonado',  'UY', -34.91800000, -54.95600000, '+598 4222 5678', NULL,                       NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+-- ── Courts uruguayos ─────────────────────────────────────────
+INSERT INTO complexes.courts (id, complex_id, sport_id, name, indoor, is_active) VALUES
+  ('cc000005-0000-0000-0000-000000000005', 'bb000003-0000-0000-0000-000000000003', 'aaaa0001-0000-0000-0000-000000000001', 'Pista Central', TRUE,  TRUE),
+  ('cc000006-0000-0000-0000-000000000006', 'bb000003-0000-0000-0000-000000000003', 'aaaa0001-0000-0000-0000-000000000001', 'Pista Norte',   FALSE, TRUE),
+  ('cc000007-0000-0000-0000-000000000007', 'bb000003-0000-0000-0000-000000000003', 'aaaa0002-0000-0000-0000-000000000002', 'Pista Pádel 1', TRUE,  TRUE),
+  ('cc000008-0000-0000-0000-000000000008', 'bb000004-0000-0000-0000-000000000004', 'aaaa0002-0000-0000-0000-000000000002', 'Pista A',       FALSE, TRUE),
+  ('cc000009-0000-0000-0000-000000000009', 'bb000004-0000-0000-0000-000000000004', 'aaaa0002-0000-0000-0000-000000000002', 'Pista B',       FALSE, TRUE),
+  ('cc000010-0000-0000-0000-000000000010', 'bb000004-0000-0000-0000-000000000004', 'aaaa0001-0000-0000-0000-000000000001', 'Pista Tenis',   FALSE, TRUE)
+ON CONFLICT DO NOTHING;
+
+-- ── User profiles uruguayos ───────────────────────────────────
+INSERT INTO users.user_profiles (id, email, username, name, bio, country, city, phone, birth_date, created_at, updated_at) VALUES
+  ('77777777-7777-7777-7777-777777777777', 'santiago@pivoo.com',  'santiago_uy',  'Santiago Pérez',   'Tenista del Carrasco TCC. Nivel intermedio competitivo.',        'UY', 'Montevideo',     '+59899123456', '1990-03-15 00:00:00+00', NOW(), NOW()),
+  ('88888888-8888-8888-8888-888888888888', 'valentina@pivoo.com', 'valentina_uy', 'Valentina Suárez', 'Padelera. Campeona departamental Montevideo 2025.',              'UY', 'Montevideo',     '+59899234567', '1995-07-22 00:00:00+00', NOW(), NOW()),
+  ('99999999-9999-9999-9999-999999999999', 'matias@pivoo.com',    'matias_uy',    'Matías Fernández', 'Nuevo en el pádel. Estudiante de UDELAR Ingeniería.',            'UY', 'Punta del Este', '+59899345678', '1998-11-08 00:00:00+00', NOW(), NOW()),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'lucia@pivoo.com',     'lucia_uy',     'Lucía Castro',     'Tenis y pádel. Me gustan los triples al amanecer en Carrasco.',  'UY', 'Montevideo',     '+59899456789', '1993-05-30 00:00:00+00', NOW(), NOW()),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'gonzalo@pivoo.com',   'gonzalo_uy',   'Gonzalo Ibáñez',   'Tenista de toda la vida. Ranking departamental Maldonado.',      'UY', 'Maldonado',      '+59899567890', '1987-09-12 00:00:00+00', NOW(), NOW()),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'florencia@pivoo.com', 'florencia_uy', 'Florencia Ríos',   'Empezando en el pádel con mi hermana. ¡Vamos!',                 'UY', 'Montevideo',     '+59899678901', '2001-02-14 00:00:00+00', NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+-- ── User sport stats uruguayos ────────────────────────────────
+INSERT INTO users.user_sport_stats (id, user_id, sport_id, matches_played, matches_won, ranking_points, level, updated_at) VALUES
+  -- Tenis
+  ('aa000010-0000-0000-0000-000000000010', '77777777-7777-7777-7777-777777777777', 'aaaa0001-0000-0000-0000-000000000001',  8,  3, 1080, 'INTERMEDIATE', NOW()),  -- santiago
+  ('aa000011-0000-0000-0000-000000000011', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaa0001-0000-0000-0000-000000000001', 14, 11, 1620, 'ADVANCED',     NOW()),  -- gonzalo
+  ('aa000012-0000-0000-0000-000000000012', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaa0001-0000-0000-0000-000000000001',  5,  2, 1050, 'BEGINNER',     NOW()),  -- lucia
+  ('aa000013-0000-0000-0000-000000000013', '99999999-9999-9999-9999-999999999999', 'aaaa0001-0000-0000-0000-000000000001',  3,  0,  920, 'BEGINNER',     NOW()),  -- matias
+  ('aa000014-0000-0000-0000-000000000014', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'aaaa0001-0000-0000-0000-000000000001',  1,  0,  980, 'BEGINNER',     NOW()),  -- florencia
+  -- Pádel
+  ('aa000015-0000-0000-0000-000000000015', '88888888-8888-8888-8888-888888888888', 'aaaa0002-0000-0000-0000-000000000002', 16, 13, 1720, 'ADVANCED',     NOW()),  -- valentina
+  ('aa000016-0000-0000-0000-000000000016', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaa0002-0000-0000-0000-000000000002',  7,  4, 1120, 'INTERMEDIATE', NOW()),  -- lucia
+  ('aa000017-0000-0000-0000-000000000017', '99999999-9999-9999-9999-999999999999', 'aaaa0002-0000-0000-0000-000000000002',  6,  2, 1040, 'BEGINNER',     NOW()),  -- matias
+  ('aa000018-0000-0000-0000-000000000018', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'aaaa0002-0000-0000-0000-000000000002',  4,  1, 1010, 'BEGINNER',     NOW()),  -- florencia
+  ('aa000019-0000-0000-0000-000000000019', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaa0002-0000-0000-0000-000000000002',  4,  3, 1100, 'INTERMEDIATE', NOW())   -- gonzalo
+ON CONFLICT DO NOTHING;
+
+-- =============================================================
+-- TORNEO 4 — Copa Invierno Tenis Carrasco (REGISTRATION_OPEN)
+-- Complex: Club de Tenis Carrasco (Montevideo, UY)
+-- Format:  SINGLE_ELIMINATION, max 8 jugadores
+-- Gonzalo y Santiago ya inscriptos; Lucía y Matías pendientes
+-- =============================================================
+
+INSERT INTO complexes.tournaments (id, complex_id, name, sport_id, format, status, max_participants, registration_deadline, start_date, description, created_at, updated_at) VALUES
+  ('tt000004-0000-0000-0000-000000000004',
+   'bb000003-0000-0000-0000-000000000003',
+   'Copa Invierno de Tenis Carrasco 2026',
+   'aaaa0001-0000-0000-0000-000000000001',
+   'SINGLE_ELIMINATION', 'REGISTRATION_OPEN', 8,
+   '2026-07-10 23:59:00+00',
+   '2026-07-19 09:00:00+00',
+   'Torneo de tenis individual de invierno. Hasta 8 participantes. ¡Inscripciones abiertas!',
+   NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO complexes.tournament_registrations (id, tournament_id, user_id, status, seed) VALUES
+  ('tr000011-0000-0000-0000-000000000011', 'tt000004-0000-0000-0000-000000000004', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'APPROVED', 1),    -- gonzalo (favorito)
+  ('tr000012-0000-0000-0000-000000000012', 'tt000004-0000-0000-0000-000000000004', '77777777-7777-7777-7777-777777777777', 'APPROVED', 2),    -- santiago
+  ('tr000013-0000-0000-0000-000000000013', 'tt000004-0000-0000-0000-000000000004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'PENDING',  NULL), -- lucia
+  ('tr000014-0000-0000-0000-000000000014', 'tt000004-0000-0000-0000-000000000004', '99999999-9999-9999-9999-999999999999', 'PENDING',  NULL)  -- matias
+ON CONFLICT DO NOTHING;
+
+INSERT INTO complexes.tournament_ranking_points (id, tournament_id, position, points) VALUES
+  ('tp000009-0000-0000-0000-000000000009', 'tt000004-0000-0000-0000-000000000004', 1, 120),
+  ('tp000010-0000-0000-0000-000000000010', 'tt000004-0000-0000-0000-000000000004', 2,  70),
+  ('tp000011-0000-0000-0000-000000000011', 'tt000004-0000-0000-0000-000000000004', 3,  35),
+  ('tp000012-0000-0000-0000-000000000012', 'tt000004-0000-0000-0000-000000000004', 4,  15)
+ON CONFLICT DO NOTHING;
+
+-- =============================================================
+-- PARTIDOS URUGUAYOS
+-- M8:  Singles tenis Carrasco — gonzalo vs santiago (COMPLETED, gonzalo gana 6-3 6-4)
+-- M9:  Pádel dobles Maldonado — valentina+lucia vs matias+florencia (COMPLETED, TEAM_A gana)
+-- M10: Singles tenis Carrasco — santiago busca rival (OPEN, 10-jun)
+-- M11: Pádel Maldonado — valentina busca 3 más (OPEN, 14-jun, nivel alto femenino)
+-- M12: Dobles tenis Carrasco — gonzalo+santiago vs lucia+matias (COMPLETED, TEAM_A gana)
+-- M13: Pádel Carrasco — lucia busca pareja (OPEN, 20-jun, femenino nivel libre)
+-- =============================================================
+
+INSERT INTO matches.matches (id, sport_id, complex_id, court_id, admin_user_id, scheduled_at, max_players, min_players, required_level, gender, status, description, created_at, updated_at) VALUES
+  ('dd000008-0000-0000-0000-000000000008',
+   'aaaa0001-0000-0000-0000-000000000001', 'bb000003-0000-0000-0000-000000000003', 'cc000005-0000-0000-0000-000000000005',
+   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '2026-05-15 10:00:00+00', 2, 2, 'INTERMEDIATE', 'MASCULINO', 'COMPLETED',
+   'Singles tenis nivel intermedio', NOW(), NOW()),
+
+  ('dd000009-0000-0000-0000-000000000009',
+   'aaaa0002-0000-0000-0000-000000000002', 'bb000004-0000-0000-0000-000000000004', 'cc000008-0000-0000-0000-000000000008',
+   '88888888-8888-8888-8888-888888888888', '2026-05-18 17:00:00+00', 4, 4, 'BEGINNER', 'MIXTO', 'COMPLETED',
+   'Pádel dobles mixto — todos los niveles', NOW(), NOW()),
+
+  ('dd000010-0000-0000-0000-000000000010',
+   'aaaa0001-0000-0000-0000-000000000001', 'bb000003-0000-0000-0000-000000000003', 'cc000006-0000-0000-0000-000000000006',
+   '77777777-7777-7777-7777-777777777777', '2026-06-10 09:00:00+00', 2, 2, 'INTERMEDIATE', 'MASCULINO', 'OPEN',
+   'Busco rival para singles, nivel intermedio', NOW(), NOW()),
+
+  ('dd000011-0000-0000-0000-000000000011',
+   'aaaa0002-0000-0000-0000-000000000002', 'bb000004-0000-0000-0000-000000000004', 'cc000009-0000-0000-0000-000000000009',
+   '88888888-8888-8888-8888-888888888888', '2026-06-14 19:00:00+00', 4, 4, 'ADVANCED', 'FEMENINO', 'OPEN',
+   'Pádel nocturno nivel alto — 3 lugares disponibles', NOW(), NOW()),
+
+  ('dd000012-0000-0000-0000-000000000012',
+   'aaaa0001-0000-0000-0000-000000000001', 'bb000003-0000-0000-0000-000000000003', 'cc000005-0000-0000-0000-000000000005',
+   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '2026-05-25 11:00:00+00', 4, 4, 'INTERMEDIATE', 'MASCULINO', 'COMPLETED',
+   'Dobles tenis amistoso', NOW(), NOW()),
+
+  ('dd000013-0000-0000-0000-000000000013',
+   'aaaa0002-0000-0000-0000-000000000002', 'bb000003-0000-0000-0000-000000000003', 'cc000007-0000-0000-0000-000000000007',
+   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '2026-06-20 20:00:00+00', 4, 4, NULL, 'FEMENINO', 'OPEN',
+   'Pádel femenino, nivel libre — ¡bienvenidas!', NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+-- M8: gonzalo (TEAM_A) vs santiago (TEAM_B)
+INSERT INTO matches.match_participants (id, match_id, user_id, participant_type, status, team) VALUES
+  ('pp000023-0000-0000-0000-000000000023', 'dd000008-0000-0000-0000-000000000008', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'REGISTERED', 'APPROVED', 'TEAM_A'),
+  ('pp000024-0000-0000-0000-000000000024', 'dd000008-0000-0000-0000-000000000008', '77777777-7777-7777-7777-777777777777', 'REGISTERED', 'APPROVED', 'TEAM_B')
+ON CONFLICT DO NOTHING;
+
+-- M9: valentina+lucia (TEAM_A) vs matias+florencia (TEAM_B)
+INSERT INTO matches.match_participants (id, match_id, user_id, participant_type, status, team) VALUES
+  ('pp000025-0000-0000-0000-000000000025', 'dd000009-0000-0000-0000-000000000009', '88888888-8888-8888-8888-888888888888', 'REGISTERED', 'APPROVED', 'TEAM_A'),
+  ('pp000026-0000-0000-0000-000000000026', 'dd000009-0000-0000-0000-000000000009', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'REGISTERED', 'APPROVED', 'TEAM_A'),
+  ('pp000027-0000-0000-0000-000000000027', 'dd000009-0000-0000-0000-000000000009', '99999999-9999-9999-9999-999999999999', 'REGISTERED', 'APPROVED', 'TEAM_B'),
+  ('pp000028-0000-0000-0000-000000000028', 'dd000009-0000-0000-0000-000000000009', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'REGISTERED', 'APPROVED', 'TEAM_B')
+ON CONFLICT DO NOTHING;
+
+-- M10: santiago solo (admin, busca rival)
+INSERT INTO matches.match_participants (id, match_id, user_id, participant_type, status, team) VALUES
+  ('pp000029-0000-0000-0000-000000000029', 'dd000010-0000-0000-0000-000000000010', '77777777-7777-7777-7777-777777777777', 'REGISTERED', 'APPROVED', NULL)
+ON CONFLICT DO NOTHING;
+
+-- M11: valentina (admin), lucia (pendiente)
+INSERT INTO matches.match_participants (id, match_id, user_id, participant_type, status, team) VALUES
+  ('pp000030-0000-0000-0000-000000000030', 'dd000011-0000-0000-0000-000000000011', '88888888-8888-8888-8888-888888888888', 'REGISTERED', 'APPROVED', NULL),
+  ('pp000031-0000-0000-0000-000000000031', 'dd000011-0000-0000-0000-000000000011', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'REGISTERED', 'PENDING',  NULL)
+ON CONFLICT DO NOTHING;
+
+-- M12: gonzalo+santiago (TEAM_A) vs lucia+matias (TEAM_B)
+INSERT INTO matches.match_participants (id, match_id, user_id, participant_type, status, team) VALUES
+  ('pp000032-0000-0000-0000-000000000032', 'dd000012-0000-0000-0000-000000000012', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'REGISTERED', 'APPROVED', 'TEAM_A'),
+  ('pp000033-0000-0000-0000-000000000033', 'dd000012-0000-0000-0000-000000000012', '77777777-7777-7777-7777-777777777777', 'REGISTERED', 'APPROVED', 'TEAM_A'),
+  ('pp000034-0000-0000-0000-000000000034', 'dd000012-0000-0000-0000-000000000012', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'REGISTERED', 'APPROVED', 'TEAM_B'),
+  ('pp000035-0000-0000-0000-000000000035', 'dd000012-0000-0000-0000-000000000012', '99999999-9999-9999-9999-999999999999', 'REGISTERED', 'APPROVED', 'TEAM_B')
+ON CONFLICT DO NOTHING;
+
+-- M13: lucia (admin), florencia (pendiente)
+INSERT INTO matches.match_participants (id, match_id, user_id, participant_type, status, team) VALUES
+  ('pp000036-0000-0000-0000-000000000036', 'dd000013-0000-0000-0000-000000000013', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'REGISTERED', 'APPROVED', NULL),
+  ('pp000037-0000-0000-0000-000000000037', 'dd000013-0000-0000-0000-000000000013', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'REGISTERED', 'PENDING',  NULL)
+ON CONFLICT DO NOTHING;
+
+-- ── Match results uruguayos ───────────────────────────────────
+INSERT INTO matches.match_results (id, match_id, sets, winner_team) VALUES
+  ('rr000006-0000-0000-0000-000000000006', 'dd000008-0000-0000-0000-000000000008',
+   '[{"teamA": 6, "teamB": 3}, {"teamA": 6, "teamB": 4}]', 'TEAM_A'),  -- gonzalo gana
+  ('rr000007-0000-0000-0000-000000000007', 'dd000009-0000-0000-0000-000000000009',
+   '[{"teamA": 6, "teamB": 2}, {"teamA": 6, "teamB": 3}]', 'TEAM_A'),  -- valentina/lucia ganan
+  ('rr000008-0000-0000-0000-000000000008', 'dd000012-0000-0000-0000-000000000012',
+   '[{"teamA": 6, "teamB": 3}, {"teamA": 6, "teamB": 1}]', 'TEAM_A')   -- gonzalo/santiago ganan
+ON CONFLICT DO NOTHING;
+
+-- Backfill country for all matches from their linked complex
+UPDATE matches.matches m
+SET country = c.country
+FROM complexes.sport_complexes c
+WHERE m.complex_id = c.id AND m.country IS NULL;
+
+-- ── Teams uruguayos ───────────────────────────────────────────
+INSERT INTO teams.teams (id, name, sport_id, color, created_at, updated_at) VALUES
+  ('ee000004-0000-0000-0000-000000000004', 'Los Riverenses', 'aaaa0001-0000-0000-0000-000000000001', '#10B981', NOW(), NOW()),
+  ('ee000005-0000-0000-0000-000000000005', 'Dupla Carrasco', 'aaaa0002-0000-0000-0000-000000000002', '#EC4899', NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO teams.team_members (id, team_id, user_id) VALUES
+  ('mm000006-0000-0000-0000-000000000006', 'ee000004-0000-0000-0000-000000000004', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),  -- gonzalo
+  ('mm000007-0000-0000-0000-000000000007', 'ee000004-0000-0000-0000-000000000004', '77777777-7777-7777-7777-777777777777'),  -- santiago
+  ('mm000008-0000-0000-0000-000000000008', 'ee000005-0000-0000-0000-000000000005', '88888888-8888-8888-8888-888888888888'),  -- valentina
+  ('mm000009-0000-0000-0000-000000000009', 'ee000005-0000-0000-0000-000000000005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')   -- lucia
+ON CONFLICT DO NOTHING;
+
+INSERT INTO teams.team_invitations (id, team_id, invited_user_id, invited_by_user_id, status) VALUES
+  ('ii000003-0000-0000-0000-000000000003', 'ee000004-0000-0000-0000-000000000004', '99999999-9999-9999-9999-999999999999', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'PENDING')
 ON CONFLICT DO NOTHING;
 
 -- =============================================================

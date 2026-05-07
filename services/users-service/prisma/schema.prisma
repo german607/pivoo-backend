@@ -33,14 +33,18 @@ enum Category {
 }
 
 model UserProfile {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String   @unique
+  id        String    @id @default(uuid())
+  email     String    @unique
+  username  String    @unique
   name      String
-  avatarUrl String?  @map("avatar_url")
+  avatarUrl String?   @map("avatar_url")
   bio       String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  country   String?
+  city      String?
+  phone     String?
+  birthDate DateTime? @map("birth_date")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   sportStats UserSportStats[]
 
@@ -56,6 +60,7 @@ model UserSportStats {
   matchesWon     Int        @default(0) @map("matches_won")
   rankingPoints  Int        @default(1000) @map("ranking_points")
   level          SkillLevel @default(BEGINNER)
+  category       Category?
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -52,7 +52,8 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    const country = await this.fetchUserCountry(user.id);
+    const tokens = await this.generateTokens(user.id, user.email, country);
     await this.saveRefreshTokenHash(user.id, tokens.refreshToken);
     return tokens;
   }
@@ -91,7 +92,8 @@ export class AuthService {
       isNewUser = true;
     }
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    const country = isNewUser ? null : await this.fetchUserCountry(user.id);
+    const tokens = await this.generateTokens(user.id, user.email, country);
     await this.saveRefreshTokenHash(user.id, tokens.refreshToken);
 
     if (isNewUser) {
@@ -148,7 +150,8 @@ export class AuthService {
     const tokenMatches = await bcrypt.compare(refreshToken, user.refreshTokenHash);
     if (!tokenMatches) throw new UnauthorizedException('Invalid refresh token');
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    const country = await this.fetchUserCountry(user.id);
+    const tokens = await this.generateTokens(user.id, user.email, country);
     await this.saveRefreshTokenHash(user.id, tokens.refreshToken);
     return tokens;
   }
@@ -171,8 +174,8 @@ export class AuthService {
     }
   }
 
-  private async generateTokens(userId: string, email: string) {
-    const payload = { sub: userId, email };
+  private async generateTokens(userId: string, email: string, country?: string | null) {
+    const payload = { sub: userId, email, country: country ?? null };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.config.get('JWT_SECRET'),
@@ -184,6 +187,17 @@ export class AuthService {
       }),
     ]);
     return { accessToken, refreshToken };
+  }
+
+  private async fetchUserCountry(userId: string): Promise<string | null> {
+    try {
+      const res = await firstValueFrom(
+        this.http.get(`${this.usersServiceUrl}/api/v1/users/${userId}`),
+      );
+      return (res.data?.country as string | null) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   private async saveRefreshTokenHash(userId: string, refreshToken: string) {

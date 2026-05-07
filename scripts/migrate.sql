@@ -252,6 +252,168 @@ BEGIN
 END $$;
 
 -- =============================================================
+-- 6. USERS SCHEMA — category column in user_sport_stats
+-- =============================================================
+
+DO $$ BEGIN CREATE TYPE users."Category" AS ENUM ('PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SEPTIMA','OCTAVA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'users' AND table_name = 'user_sport_stats' AND column_name = 'category'
+  ) THEN
+    ALTER TABLE users.user_sport_stats ADD COLUMN category users."Category";
+    RAISE NOTICE 'users.user_sport_stats: added category';
+  ELSE
+    RAISE NOTICE 'users.user_sport_stats: category already exists, skipping';
+  END IF;
+END $$;
+
+-- =============================================================
+-- 7. COMPLEXES SCHEMA — country column in sport_complexes
+-- =============================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'complexes' AND table_name = 'sport_complexes' AND column_name = 'country'
+  ) THEN
+    ALTER TABLE complexes.sport_complexes ADD COLUMN country TEXT;
+    RAISE NOTICE 'complexes.sport_complexes: added country';
+  ELSE
+    RAISE NOTICE 'complexes.sport_complexes: country already exists, skipping';
+  END IF;
+END $$;
+
+-- =============================================================
+-- 8. USERS SCHEMA — identification fields in user_profiles
+-- =============================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'users' AND table_name = 'user_profiles' AND column_name = 'country'
+  ) THEN
+    ALTER TABLE users.user_profiles ADD COLUMN country TEXT;
+    RAISE NOTICE 'users.user_profiles: added country';
+  ELSE
+    RAISE NOTICE 'users.user_profiles: country already exists, skipping';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'users' AND table_name = 'user_profiles' AND column_name = 'city'
+  ) THEN
+    ALTER TABLE users.user_profiles ADD COLUMN city TEXT;
+    RAISE NOTICE 'users.user_profiles: added city';
+  ELSE
+    RAISE NOTICE 'users.user_profiles: city already exists, skipping';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'users' AND table_name = 'user_profiles' AND column_name = 'phone'
+  ) THEN
+    ALTER TABLE users.user_profiles ADD COLUMN phone TEXT;
+    RAISE NOTICE 'users.user_profiles: added phone';
+  ELSE
+    RAISE NOTICE 'users.user_profiles: phone already exists, skipping';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'users' AND table_name = 'user_profiles' AND column_name = 'birth_date'
+  ) THEN
+    ALTER TABLE users.user_profiles ADD COLUMN birth_date TIMESTAMPTZ;
+    RAISE NOTICE 'users.user_profiles: added birth_date';
+  ELSE
+    RAISE NOTICE 'users.user_profiles: birth_date already exists, skipping';
+  END IF;
+END $$;
+
+-- =============================================================
+-- 9. COMPLEXES SCHEMA — level / category / gender in tournaments
+-- =============================================================
+
+DO $$ BEGIN CREATE TYPE complexes."SkillLevel" AS ENUM ('BEGINNER','INTERMEDIATE','ADVANCED','PROFESSIONAL'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE complexes."Category"   AS ENUM ('PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SEPTIMA','OCTAVA');  EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE complexes."Gender"     AS ENUM ('MASCULINO','FEMENINO','MIXTO');                                              EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'complexes' AND table_name = 'tournaments' AND column_name = 'level'
+  ) THEN
+    ALTER TABLE complexes.tournaments ADD COLUMN level complexes."SkillLevel";
+    RAISE NOTICE 'complexes.tournaments: added level';
+  ELSE
+    RAISE NOTICE 'complexes.tournaments: level already exists, skipping';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'complexes' AND table_name = 'tournaments' AND column_name = 'category'
+  ) THEN
+    ALTER TABLE complexes.tournaments ADD COLUMN category complexes."Category";
+    RAISE NOTICE 'complexes.tournaments: added category';
+  ELSE
+    RAISE NOTICE 'complexes.tournaments: category already exists, skipping';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'complexes' AND table_name = 'tournaments' AND column_name = 'gender'
+  ) THEN
+    ALTER TABLE complexes.tournaments ADD COLUMN gender complexes."Gender";
+    RAISE NOTICE 'complexes.tournaments: added gender';
+  ELSE
+    RAISE NOTICE 'complexes.tournaments: gender already exists, skipping';
+  END IF;
+END $$;
+
+-- =============================================================
+-- 10. MATCHES SCHEMA — country column in matches
+-- =============================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'country'
+  ) THEN
+    ALTER TABLE matches.matches ADD COLUMN country TEXT;
+    RAISE NOTICE 'matches.matches: added country';
+  ELSE
+    RAISE NOTICE 'matches.matches: country already exists, skipping';
+  END IF;
+END $$;
+
+-- Backfill country from the linked complex for existing rows
+UPDATE matches.matches m
+SET country = c.country
+FROM complexes.sport_complexes c
+WHERE m.complex_id = c.id AND m.country IS NULL;
+
+-- =============================================================
 -- SUMMARY
 -- =============================================================
 DO $$

@@ -86,6 +86,7 @@ model Match {
   requiredLevel    SkillLevel? @map("required_level")
   requiredCategory Category?   @map("required_category")
   gender           Gender?
+  country          String?
   status           MatchStatus @default(OPEN)
   description      String?
   createdAt        DateTime    @default(now()) @map("created_at")

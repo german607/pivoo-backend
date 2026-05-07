@@ -13,6 +13,8 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { OptionalJwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { getClientIp, getCountryFromIp } from '../common/geo';
 import { AuthGuard } from '@nestjs/passport';
 import { ComplexAdminGuard } from '../common/guards/complex-admin.guard';
 import { TournamentsService } from './tournaments.service';
@@ -33,12 +35,20 @@ export class TournamentsController {
   // ─── Public ────────────────────────────────────────────────
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   findAll(
+    @Request() req: any,
     @Query('complexId') complexId?: string,
     @Query('sportId') sportId?: string,
     @Query('status') status?: TournamentStatus,
+    @Query('country') country?: string,
   ) {
-    return this.service.findAll({ complexId, sportId, status });
+    const effectiveCountry =
+      country ??
+      (req.user?.country as string | null) ??
+      getCountryFromIp(getClientIp(req)) ??
+      undefined;
+    return this.service.findAll({ complexId, sportId, status, country: effectiveCountry });
   }
 
   @Get(':id')

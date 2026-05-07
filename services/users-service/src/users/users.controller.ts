@@ -1,10 +1,14 @@
 import {
   Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request,
+  UploadedFile, UseInterceptors, BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateSportStatsDto } from './dto/update-sport-stats.dto';
 import { UpdateStatsDto } from './dto/update-stats.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
@@ -55,6 +59,39 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateProfile(req.user.userId, dto);
+  }
+
+  @Post('me/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    fileFilter: (_req, file, cb) => {
+      if (!file.mimetype.match(/^image\/(jpeg|png|webp)$/)) {
+        return cb(new BadRequestException('Solo se permiten imágenes JPEG, PNG o WebP'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({ summary: 'Upload profile picture (JPEG, PNG o WebP, máx 5 MB)' })
+  uploadAvatar(@Request() req: any, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No se recibió ningún archivo');
+    return this.usersService.uploadAvatar(req.user.userId, file);
+  }
+
+  @Patch('me/stats/:sportId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update own level and/or category for a sport (upserts if no record exists)' })
+  updateMySportStats(
+    @Request() req: any,
+    @Param('sportId') sportId: string,
+    @Body() dto: UpdateSportStatsDto,
+  ) {
+    return this.usersService.updateMySportStats(req.user.userId, sportId, dto);
   }
 
   @Post('stats')

@@ -1,12 +1,17 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateSportStatsDto } from './dto/update-sport-stats.dto';
 import { SkillLevel } from '../generated/prisma';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   async createProfile(userId: string, dto: CreateProfileDto) {
     const byId = await this.prisma.userProfile.findUnique({ where: { id: userId } });
@@ -49,12 +54,37 @@ export class UsersService {
     });
   }
 
+  async uploadAvatar(userId: string, file: Express.Multer.File) {
+    await this.findById(userId);
+    const avatarUrl = await this.storage.uploadProfileImage(userId, file);
+    return this.prisma.userProfile.update({
+      where: { id: userId },
+      data: { avatarUrl },
+    });
+  }
+
   async getRankings(sportId: string, limit = 20) {
     return this.prisma.userSportStats.findMany({
       where: { sportId },
       include: { user: { select: { id: true, username: true, name: true, avatarUrl: true } } },
       orderBy: { rankingPoints: 'desc' },
       take: limit,
+    });
+  }
+
+  async updateMySportStats(userId: string, sportId: string, dto: UpdateSportStatsDto) {
+    return this.prisma.userSportStats.upsert({
+      where: { userId_sportId: { userId, sportId } },
+      update: {
+        ...(dto.level !== undefined ? { level: dto.level } : {}),
+        ...(dto.category !== undefined ? { category: dto.category } : {}),
+      },
+      create: {
+        userId,
+        sportId,
+        level: dto.level ?? SkillLevel.BEGINNER,
+        category: dto.category ?? null,
+      },
     });
   }
 

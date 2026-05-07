@@ -1,11 +1,12 @@
 import {
-  Controller, Get, Post, Delete, Body, Param, Query, UseGuards,
+  Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Request,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ComplexesService } from './complexes.service';
 import { CreateComplexDto } from './dto/create-complex.dto';
 import { CreateCourtDto } from './dto/create-court.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { JwtAuthGuard, OptionalJwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { getClientIp, getCountryFromIp } from '../common/geo';
 
 @ApiTags('complexes')
 @Controller('complexes')
@@ -13,10 +14,17 @@ export class ComplexesController {
   constructor(private complexesService: ComplexesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List complexes, optionally filtered by city' })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'List complexes. Authenticated users auto-filter by their country.' })
+  @ApiQuery({ name: 'country', required: false, description: 'ISO country code override (e.g. UY, AR, ES)' })
   @ApiQuery({ name: 'city', required: false })
-  findAll(@Query('city') city?: string) {
-    return this.complexesService.findAll(city);
+  findAll(@Request() req: any, @Query('country') country?: string, @Query('city') city?: string) {
+    const effectiveCountry =
+      country ??
+      (req.user?.country as string | null) ??
+      getCountryFromIp(getClientIp(req)) ??
+      undefined;
+    return this.complexesService.findAll(effectiveCountry, city);
   }
 
   @Get(':id')
