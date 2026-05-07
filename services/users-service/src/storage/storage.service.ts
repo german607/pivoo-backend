@@ -38,6 +38,7 @@ export class StorageService {
         Body: file.buffer,
         ContentType: file.mimetype,
         CacheControl: 'public, max-age=31536000',
+        ACL: 'public-read',
       }),
     );
 
