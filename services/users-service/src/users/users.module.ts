@@ -5,9 +5,10 @@ import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { JwtStrategy } from '../common/strategies/jwt.strategy';
 import { StorageModule } from '../storage/storage.module';
+import { KafkaModule } from '../kafka/kafka.module';
 
 @Module({
-  imports: [PassportModule, JwtModule.register({}), StorageModule],
+  imports: [PassportModule, JwtModule.register({}), StorageModule, KafkaModule],
   controllers: [UsersController],
   providers: [UsersService, JwtStrategy],
 })

@@ -1,17 +1,28 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { KafkaService } from '../kafka/kafka.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateSportStatsDto } from './dto/update-sport-stats.dto';
 import { SkillLevel } from '../generated/prisma';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
+    private kafka: KafkaService,
   ) {}
+
+  async onModuleInit() {
+    await this.kafka.startConsuming(async ({ userId, avatarUrl }) => {
+      await this.prisma.userProfile.update({
+        where: { id: userId },
+        data: { avatarUrl },
+      });
+    });
+  }
 
   async createProfile(userId: string, dto: CreateProfileDto) {
     const byId = await this.prisma.userProfile.findUnique({ where: { id: userId } });
@@ -57,10 +68,8 @@ export class UsersService {
   async uploadAvatar(userId: string, file: Express.Multer.File) {
     await this.findById(userId);
     const avatarUrl = await this.storage.uploadProfileImage(userId, file);
-    return this.prisma.userProfile.update({
-      where: { id: userId },
-      data: { avatarUrl },
-    });
+    await this.kafka.publishAvatarUploaded({ userId, avatarUrl });
+    return { avatarUrl };
   }
 
   async getRankings(sportId: string, limit = 20) {
