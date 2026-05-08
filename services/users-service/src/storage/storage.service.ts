@@ -8,6 +8,7 @@ export class StorageService {
   private readonly client: S3Client | undefined;
   private readonly bucket: string;
   private readonly endpoint: string;
+  private readonly publicBaseUrl: string;
 
   constructor(config: ConfigService) {
     this.endpoint = config.get('AWS_ENDPOINT_URL') ?? '';
@@ -15,6 +16,11 @@ export class StorageService {
 
     const accessKeyId = config.get<string>('AWS_ACCESS_KEY_ID');
     const secretAccessKey = config.get<string>('AWS_SECRET_ACCESS_KEY');
+
+    // Public URL for reading — can be a CDN/proxy in front of the bucket.
+    // Falls back to the direct endpoint path if not set.
+    this.publicBaseUrl =
+      config.get('AWS_PUBLIC_URL') ?? `${this.endpoint}/${this.bucket}`;
 
     if (accessKeyId && secretAccessKey && this.endpoint && this.bucket) {
       this.client = new S3Client({
@@ -38,11 +44,10 @@ export class StorageService {
         Body: file.buffer,
         ContentType: file.mimetype,
         CacheControl: 'public, max-age=31536000',
-        ACL: 'public-read',
       }),
     );
 
-    return `${this.endpoint}/${this.bucket}/${key}`;
+    return `${this.publicBaseUrl}/${key}`;
   }
 
   async deleteProfileImage(userId: string): Promise<void> {
