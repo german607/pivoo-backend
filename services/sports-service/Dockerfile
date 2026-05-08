@@ -1,9 +1,8 @@
-# syntax=docker/dockerfile:1
 FROM node:20-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache openssl
 COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 
 FROM base AS development
 ARG DATABASE_URL
