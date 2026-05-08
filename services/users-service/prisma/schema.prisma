@@ -10,6 +10,14 @@ datasource db {
   schemas  = ["users"]
 }
 
+enum Gender {
+  MASCULINO
+  FEMENINO
+  NO_ESPECIFICADO
+
+  @@schema("users")
+}
+
 enum SkillLevel {
   BEGINNER
   INTERMEDIATE
@@ -43,6 +51,7 @@ model UserProfile {
   city      String?
   phone     String?
   birthDate DateTime? @map("birth_date")
+  gender    Gender?
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 

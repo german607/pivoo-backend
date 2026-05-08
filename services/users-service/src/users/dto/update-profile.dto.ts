@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsDateString, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsEnum, MinLength, MaxLength } from 'class-validator';
+import { Gender } from '../../generated/prisma';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateProfileDto {
@@ -42,4 +43,9 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsDateString()
   birthDate?: string;
+
+  @ApiProperty({ required: false, enum: Gender })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
 }

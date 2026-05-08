@@ -414,6 +414,30 @@ FROM complexes.sport_complexes c
 WHERE m.complex_id = c.id AND m.country IS NULL;
 
 -- =============================================================
+-- 11. USERS SCHEMA — gender column in user_profiles
+-- =============================================================
+
+DO $$ BEGIN
+  CREATE TYPE users."Gender" AS ENUM ('MASCULINO', 'FEMENINO', 'NO_ESPECIFICADO');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TYPE users."Gender" ADD VALUE IF NOT EXISTS 'NO_ESPECIFICADO';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'users' AND table_name = 'user_profiles' AND column_name = 'gender'
+  ) THEN
+    ALTER TABLE users.user_profiles ADD COLUMN gender users."Gender";
+    RAISE NOTICE 'users.user_profiles: added gender';
+  ELSE
+    RAISE NOTICE 'users.user_profiles: gender already exists, skipping';
+  END IF;
+END $$;
+
+-- =============================================================
 -- SUMMARY
 -- =============================================================
 DO $$
