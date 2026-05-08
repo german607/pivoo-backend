@@ -47,7 +47,8 @@ export class StorageService {
       }),
     );
 
-    return `${this.publicBaseUrl}/${key}`;
+    // imgproxy URL format: /insecure/plain/s3://bucket/key
+    return `${this.publicBaseUrl}/insecure/plain/s3://${this.bucket}/${key}`;
   }
 
   async deleteProfileImage(userId: string): Promise<void> {
