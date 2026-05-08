@@ -23,10 +23,9 @@ FROM node:20-alpine AS production
 RUN apk add --no-cache openssl && addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 EXPOSE 3006
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY package*.json ./
-COPY prisma ./prisma
-RUN chown -R appuser:appgroup /app
+COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
+COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
+COPY --chown=appuser:appgroup package*.json ./
+COPY --chown=appuser:appgroup prisma ./prisma
 USER appuser
 CMD ["node", "dist/main"]

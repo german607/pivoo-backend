@@ -27,16 +27,15 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Swagger
-  const config = new DocumentBuilder()
-    .setTitle('Pivoo Auth Service')
-    .setDescription('Authentication and authorization API')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('Pivoo Auth Service')
+      .setDescription('Authentication and authorization API')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  }
 
   // 🔥 IMPORTANTE: usar PORT de Railway correctamente
   const port = parseInt(process.env.PORT || '3001', 10);
