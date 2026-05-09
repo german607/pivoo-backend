@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Kafka, Producer, logLevel } from 'kafkajs';
 import {
@@ -11,7 +11,7 @@ import {
 } from './notification-events';
 
 @Injectable()
-export class KafkaProducerService implements OnModuleDestroy {
+export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(KafkaProducerService.name);
   private producer: Producer | null = null;
 
@@ -30,10 +30,17 @@ export class KafkaProducerService implements OnModuleDestroy {
     });
 
     this.producer = kafka.producer();
-    this.producer.connect().catch((err) => {
+  }
+
+  async onModuleInit() {
+    if (!this.producer) return;
+    try {
+      await this.producer.connect();
+      this.logger.log('Kafka producer connected');
+    } catch (err) {
       this.logger.error('Kafka producer connection failed', err);
       this.producer = null;
-    });
+    }
   }
 
   async publishMatchPlayerInvited(event: MatchPlayerInvitedEvent) {
