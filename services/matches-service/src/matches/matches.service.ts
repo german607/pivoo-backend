@@ -413,6 +413,39 @@ export class MatchesService {
   }
 
   // ──────────────────────────────────────────────────────────
+  // Leave match (participant leaves voluntarily)
+  // ──────────────────────────────────────────────────────────
+
+  async leaveMatch(matchId: string, userId: string) {
+    const match = await this.findOne(matchId);
+
+    if (match.adminUserId === userId) {
+      throw new BadRequestException('The match admin cannot leave the match. Cancel it instead.');
+    }
+
+    if (match.status === MatchStatus.IN_PROGRESS || match.status === MatchStatus.COMPLETED) {
+      throw new BadRequestException('Cannot leave a match that is already in progress or completed');
+    }
+
+    const participant = await this.prisma.matchParticipant.findFirst({
+      where: { matchId, userId, participantType: 'REGISTERED' },
+    });
+    if (!participant) throw new NotFoundException('You are not a participant in this match');
+
+    await this.prisma.matchParticipant.delete({ where: { id: participant.id } });
+
+    if (
+      match.status === MatchStatus.FULL &&
+      participant.status === ParticipantStatus.APPROVED
+    ) {
+      await this.prisma.match.update({
+        where: { id: matchId },
+        data: { status: MatchStatus.OPEN },
+      });
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────
   // Team stats (called by teams-service)
   // ──────────────────────────────────────────────────────────
 

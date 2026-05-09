@@ -216,6 +216,15 @@ export class MatchesController {
     return this.matchesService.removeParticipant(id, participantId, req.user.userId);
   }
 
+  @Delete(':id/leave')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Leave a match (authenticated user removes themselves)' })
+  leaveMatch(@Param('id') id: string, @Request() req: any) {
+    return this.matchesService.leaveMatch(id, req.user.userId);
+  }
+
   // ──────────────────────────────────────────────────────────
   // Result recording
   // ──────────────────────────────────────────────────────────
