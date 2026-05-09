@@ -438,7 +438,21 @@ BEGIN
 END $$;
 
 -- =============================================================
--- 12. NOTIFICATIONS SCHEMA
+-- 12. USERS SCHEMA — user_follows table
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS users.user_follows (
+  follower_id  TEXT        NOT NULL,
+  following_id TEXT        NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id)
+);
+
+CREATE INDEX IF NOT EXISTS user_follows_following_idx
+  ON users.user_follows (following_id);
+
+-- =============================================================
+-- 13. NOTIFICATIONS SCHEMA
 -- =============================================================
 
 CREATE SCHEMA IF NOT EXISTS notifications;
@@ -453,9 +467,16 @@ DO $$ BEGIN
     'TOURNAMENT_REGISTRATION_APPROVED',
     'TOURNAMENT_REGISTRATION_REJECTED',
     'TOURNAMENT_BRACKET_GENERATED',
-    'TOURNAMENT_FINALIZED'
+    'TOURNAMENT_FINALIZED',
+    'USER_FOLLOWED'
   );
 EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Add USER_FOLLOWED if the type already existed without it
+DO $$ BEGIN
+  ALTER TYPE notifications."NotificationType" ADD VALUE IF NOT EXISTS 'USER_FOLLOWED';
+EXCEPTION WHEN others THEN NULL;
 END $$;
 
 CREATE TABLE IF NOT EXISTS notifications.notifications (

@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request,
+  Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request,
   UploadedFile, UseInterceptors, BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -98,5 +98,51 @@ export class UsersController {
   @ApiOperation({ summary: 'Update sport stats after match (internal, called by matches-service)' })
   updateStats(@Body() dto: UpdateStatsDto) {
     return this.usersService.updateStatsAfterMatch(dto.userId, dto.sportId, dto.won, dto.pointsDelta);
+  }
+
+  // ─── Follow / Unfollow ────────────────────────────────────────
+
+  @Get('me/following-ids')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get IDs of users the current user follows' })
+  getFollowingIds(@Request() req: any) {
+    return this.usersService.getFollowingIds(req.user.userId);
+  }
+
+  @Post(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Follow a user' })
+  follow(@Request() req: any, @Param('id') id: string) {
+    return this.usersService.follow(req.user.userId, id);
+  }
+
+  @Delete(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Unfollow a user' })
+  unfollow(@Request() req: any, @Param('id') id: string) {
+    return this.usersService.unfollow(req.user.userId, id);
+  }
+
+  @Get(':id/followers')
+  @ApiOperation({ summary: 'Get followers of a user' })
+  getFollowers(@Param('id') id: string) {
+    return this.usersService.getFollowers(id);
+  }
+
+  @Get(':id/following')
+  @ApiOperation({ summary: 'Get users that a user follows' })
+  getFollowing(@Param('id') id: string) {
+    return this.usersService.getFollowing(id);
+  }
+
+  @Get(':id/follow-status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check if current user follows :id' })
+  getFollowStatus(@Request() req: any, @Param('id') id: string) {
+    return this.usersService.getFollowStatus(req.user.userId, id);
   }
 }

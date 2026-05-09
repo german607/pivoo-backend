@@ -78,3 +78,14 @@ model UserSportStats {
   @@map("user_sport_stats")
   @@schema("users")
 }
+
+model UserFollow {
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+  @@map("user_follows")
+  @@schema("users")
+}

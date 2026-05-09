@@ -48,9 +48,10 @@ DO $$ BEGIN
   CREATE TYPE notifications."NotificationType" AS ENUM (
     'MATCH_INVITATION','MATCH_JOIN_APPROVED','MATCH_JOIN_REJECTED','MATCH_CANCELLED',
     'MATCH_RESULT_RECORDED','TOURNAMENT_REGISTRATION_APPROVED','TOURNAMENT_REGISTRATION_REJECTED',
-    'TOURNAMENT_BRACKET_GENERATED','TOURNAMENT_FINALIZED'
+    'TOURNAMENT_BRACKET_GENERATED','TOURNAMENT_FINALIZED','USER_FOLLOWED'
   );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE notifications."NotificationType" ADD VALUE IF NOT EXISTS 'USER_FOLLOWED'; EXCEPTION WHEN others THEN NULL; END $$;
 
 -- =============================================================
 -- 3. TABLES
@@ -106,6 +107,14 @@ CREATE TABLE IF NOT EXISTS users.user_sport_stats (
   updated_at     TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
   UNIQUE(user_id, sport_id)
 );
+
+CREATE TABLE IF NOT EXISTS users.user_follows (
+  follower_id  TEXT        NOT NULL REFERENCES users.user_profiles(id) ON DELETE CASCADE,
+  following_id TEXT        NOT NULL REFERENCES users.user_profiles(id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id)
+);
+CREATE INDEX IF NOT EXISTS user_follows_following_idx ON users.user_follows (following_id);
 
 -- ── sports ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sports.sports (

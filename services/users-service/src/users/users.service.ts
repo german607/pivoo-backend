@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { KafkaService } from '../kafka/kafka.service';
@@ -122,6 +122,86 @@ export class UsersService implements OnModuleInit {
 
     await this.recalculateLevel(userId, sportId, stats.rankingPoints);
     return stats;
+  }
+
+  // ─── Follow / Unfollow ──────────────────────────────────────
+
+  async follow(followerId: string, followingId: string) {
+    if (followerId === followingId) {
+      throw new BadRequestException('No podés seguirte a vos mismo');
+    }
+    const target = await this.prisma.userProfile.findUnique({ where: { id: followingId }, select: { id: true, username: true } });
+    if (!target) throw new NotFoundException('User not found');
+
+    const existing = await this.prisma.userFollow.findUnique({
+      where: { followerId_followingId: { followerId, followingId } },
+    });
+    if (existing) throw new ConflictException('Already following this user');
+
+    await this.prisma.userFollow.create({ data: { followerId, followingId } });
+
+    const follower = await this.prisma.userProfile.findUnique({ where: { id: followerId }, select: { username: true } });
+    this.kafka.publishUserFollowed({
+      followerId,
+      followingId,
+      followerUsername: follower?.username ?? '',
+    }).catch(() => null);
+
+    return { following: true };
+  }
+
+  async unfollow(followerId: string, followingId: string) {
+    const existing = await this.prisma.userFollow.findUnique({
+      where: { followerId_followingId: { followerId, followingId } },
+    });
+    if (!existing) throw new NotFoundException('Not following this user');
+    await this.prisma.userFollow.delete({
+      where: { followerId_followingId: { followerId, followingId } },
+    });
+    return { following: false };
+  }
+
+  async getFollowers(userId: string) {
+    const rows = await this.prisma.userFollow.findMany({
+      where: { followingId: userId },
+      select: { followerId: true, createdAt: true },
+    });
+    const ids = rows.map((r) => r.followerId);
+    if (ids.length === 0) return [];
+    const profiles = await this.prisma.userProfile.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, username: true, name: true, avatarUrl: true },
+    });
+    return profiles;
+  }
+
+  async getFollowing(userId: string) {
+    const rows = await this.prisma.userFollow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true, createdAt: true },
+    });
+    const ids = rows.map((r) => r.followingId);
+    if (ids.length === 0) return [];
+    const profiles = await this.prisma.userProfile.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, username: true, name: true, avatarUrl: true },
+    });
+    return profiles;
+  }
+
+  async getFollowingIds(userId: string): Promise<string[]> {
+    const rows = await this.prisma.userFollow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    return rows.map((r) => r.followingId);
+  }
+
+  async getFollowStatus(followerId: string, followingId: string): Promise<{ following: boolean }> {
+    const existing = await this.prisma.userFollow.findUnique({
+      where: { followerId_followingId: { followerId, followingId } },
+    });
+    return { following: !!existing };
   }
 
   private async recalculateLevel(userId: string, sportId: string, points: number) {

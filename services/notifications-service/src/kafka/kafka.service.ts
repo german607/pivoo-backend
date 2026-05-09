@@ -13,6 +13,7 @@ import {
   TournamentRegistrationRejectedEvent,
   TournamentBracketGeneratedEvent,
   TournamentFinalizedEvent,
+  UserFollowedEvent,
 } from './events';
 
 @Injectable()
@@ -121,6 +122,9 @@ export class KafkaService implements OnModuleDestroy {
         break;
       case TOPICS.TOURNAMENT_FINALIZED:
         await this.notifications.handleTournamentFinalized(payload as TournamentFinalizedEvent);
+        break;
+      case TOPICS.USER_FOLLOWED:
+        await this.notifications.handleUserFollowed(payload as UserFollowedEvent);
         break;
     }
   }

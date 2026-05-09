@@ -3,10 +3,17 @@ import { ConfigService } from '@nestjs/config';
 import { Kafka, Producer, Consumer, logLevel } from 'kafkajs';
 
 export const AVATAR_UPLOADED_TOPIC = 'user.avatar.uploaded';
+export const USER_FOLLOWED_TOPIC = 'user.followed';
 
 export interface AvatarUploadedEvent {
   userId: string;
   avatarUrl: string;
+}
+
+export interface UserFollowedEvent {
+  followerId: string;
+  followingId: string;
+  followerUsername: string;
 }
 
 @Injectable()
@@ -67,6 +74,18 @@ export class KafkaService implements OnModuleDestroy {
       topic: AVATAR_UPLOADED_TOPIC,
       messages: [{ key: event.userId, value: JSON.stringify(event) }],
     });
+  }
+
+  async publishUserFollowed(event: UserFollowedEvent) {
+    if (!this.producer) return;
+    try {
+      await this.producer.send({
+        topic: USER_FOLLOWED_TOPIC,
+        messages: [{ key: event.followingId, value: JSON.stringify(event) }],
+      });
+    } catch (err) {
+      this.logger.error('Failed to publish user.followed event', err);
+    }
   }
 
   async onModuleDestroy() {

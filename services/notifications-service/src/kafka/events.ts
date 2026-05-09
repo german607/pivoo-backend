@@ -8,6 +8,7 @@ export const TOPICS = {
   TOURNAMENT_REGISTRATION_REJECTED: 'tournament.registration.rejected',
   TOURNAMENT_BRACKET_GENERATED: 'tournament.bracket.generated',
   TOURNAMENT_FINALIZED: 'tournament.finalized',
+  USER_FOLLOWED: 'user.followed',
 } as const;
 
 export interface MatchPlayerInvitedEvent {
@@ -67,4 +68,10 @@ export interface TournamentFinalizedEvent {
   tournamentName: string;
   participantUserIds: string[];
   winnerId: string | null;
+}
+
+export interface UserFollowedEvent {
+  followerId: string;
+  followingId: string;
+  followerUsername: string;
 }

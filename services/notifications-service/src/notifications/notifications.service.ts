@@ -15,6 +15,7 @@ import {
   TournamentRegistrationRejectedEvent,
   TournamentBracketGeneratedEvent,
   TournamentFinalizedEvent,
+  UserFollowedEvent,
 } from '../kafka/events';
 
 @Injectable()
@@ -168,6 +169,16 @@ export class NotificationsService {
       title: 'Bracket generado',
       body: `El bracket del torneo "${event.tournamentName}" ya está disponible`,
       data: { tournamentId: event.tournamentId },
+    });
+  }
+
+  async handleUserFollowed(event: UserFollowedEvent) {
+    await this.notify({
+      userId: event.followingId,
+      type: NotificationType.USER_FOLLOWED,
+      title: 'Nuevo seguidor',
+      body: `${event.followerUsername} empezó a seguirte`,
+      data: { followerId: event.followerId },
     });
   }
 
