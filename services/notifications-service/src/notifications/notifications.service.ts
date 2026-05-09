@@ -1,6 +1,7 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
+import { NotificationsGateway } from './notifications.gateway';
 import { NotificationType } from '../generated/prisma';
 import { QueryNotificationsDto } from './dto/query-notifications.dto';
 import { UpdatePreferenceDto } from './dto/update-preferences.dto';
@@ -25,6 +26,8 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
+    @Inject(forwardRef(() => NotificationsGateway))
+    private readonly gateway: NotificationsGateway,
   ) {}
 
   // ─── REST handlers ───────────────────────────────────────────
@@ -207,7 +210,7 @@ export class NotificationsService {
     const isEnabled = await this.isPreferenceEnabled(params.userId, params.type);
     if (!isEnabled) return;
 
-    await this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         userId: params.userId,
         type: params.type,
@@ -217,6 +220,7 @@ export class NotificationsService {
       },
     });
 
+    this.gateway.pushToUser(params.userId, notification);
     await this.sendPush(params.userId, params.title, params.body, params.data);
   }
 
@@ -247,6 +251,16 @@ export class NotificationsService {
         data: params.data ?? {},
       })),
     });
+
+    for (const userId of targets) {
+      this.gateway.pushToUser(userId, {
+        userId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+        data: params.data ?? {},
+      });
+    }
 
     const tokens = await this.prisma.deviceToken.findMany({
       where: { userId: { in: targets } },
