@@ -8,6 +8,8 @@ import { UpdatePreferenceDto } from './dto/update-preferences.dto';
 import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
 import {
   MatchPlayerInvitedEvent,
+  MatchJoinRequestedEvent,
+  MatchWaitlistPromotedEvent,
   MatchJoinApprovedEvent,
   MatchJoinRejectedEvent,
   MatchCancelledEvent,
@@ -100,6 +102,28 @@ export class NotificationsService {
       title: 'Te invitaron a un partido',
       body: `Fuiste invitado a un partido el ${date}`,
       data: { matchId: event.matchId, sportId: event.sportId },
+    });
+  }
+
+  async handleMatchWaitlistPromoted(event: MatchWaitlistPromotedEvent) {
+    const date = new Date(event.scheduledAt).toLocaleDateString('es-AR', { dateStyle: 'medium' });
+    await this.notify({
+      userId: event.userId,
+      type: NotificationType.MATCH_WAITLIST_PROMOTED,
+      title: 'Se liberó un lugar',
+      body: `Hay un lugar disponible en el partido del ${date}. ¡Ya quedaste anotado!`,
+      data: { matchId: event.matchId, sportId: event.sportId },
+    });
+  }
+
+  async handleMatchJoinRequested(event: MatchJoinRequestedEvent) {
+    const date = new Date(event.scheduledAt).toLocaleDateString('es-AR', { dateStyle: 'medium' });
+    await this.notify({
+      userId: event.adminUserId,
+      type: NotificationType.MATCH_JOIN_REQUESTED,
+      title: 'Nueva solicitud de unión',
+      body: `Alguien quiere unirse a tu partido del ${date}`,
+      data: { matchId: event.matchId, sportId: event.sportId, requestingUserId: event.requestingUserId },
     });
   }
 

@@ -10,6 +10,9 @@ import { CreateMatchDto } from './dto/create-match.dto';
 import { RecordResultDto } from './dto/record-result.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { AddGuestDto } from './dto/add-guest.dto';
+import { RematchDto } from './dto/rematch.dto';
+import { CreateMatchTemplateDto } from './dto/create-match-template.dto';
+import { ChallengeMatchDto } from './dto/challenge-match.dto';
 import { TeamStatsQueryDto } from './dto/team-stats-query.dto';
 import { JwtAuthGuard, OptionalJwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { getClientIp, getCountryFromIp } from '../common/geo';
@@ -43,19 +46,21 @@ export class MatchesController {
   @ApiQuery({ name: 'complexId', required: false })
   @ApiQuery({ name: 'status', required: false, enum: MatchStatus })
   @ApiQuery({ name: 'country', required: false, description: 'ISO country code override (e.g. UY, AR, ES)' })
+  @ApiQuery({ name: 'mode', required: false, enum: ['INDIVIDUAL', 'TEAM_VS_TEAM'] })
   findAll(
     @Request() req: any,
     @Query('sportId') sportId?: string,
     @Query('complexId') complexId?: string,
     @Query('status') status?: MatchStatus,
     @Query('country') country?: string,
+    @Query('mode') mode?: string,
   ) {
     const effectiveCountry =
       country ??
       (req.user?.country as string | null) ??
       getCountryFromIp(getClientIp(req)) ??
       undefined;
-    return this.matchesService.findAll({ sportId, complexId, status, country: effectiveCountry });
+    return this.matchesService.findAll({ sportId, complexId, status, country: effectiveCountry, mode });
   }
 
   @Get('mine')
@@ -223,6 +228,75 @@ export class MatchesController {
   @ApiOperation({ summary: 'Leave a match (authenticated user removes themselves)' })
   leaveMatch(@Param('id') id: string, @Request() req: any) {
     return this.matchesService.leaveMatch(id, req.user.userId);
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Team vs Team — challenge flow
+  // ──────────────────────────────────────────────────────────
+
+  @Post(':id/challenge')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Challenge a TEAM_VS_TEAM match as Team B (sends both players as pending)' })
+  challengeMatch(@Param('id') id: string, @Request() req: any, @Body() dto: ChallengeMatchDto) {
+    return this.matchesService.challengeMatch(id, req.user.userId, dto);
+  }
+
+  @Post(':id/approve-challenge')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Approve all pending Team B players at once (admin only)' })
+  approveChallenge(@Param('id') id: string, @Request() req: any) {
+    return this.matchesService.approveChallenge(id, req.user.userId);
+  }
+
+  @Post(':id/reject-challenge')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reject all pending Team B players at once (admin only)' })
+  rejectChallenge(@Param('id') id: string, @Request() req: any) {
+    return this.matchesService.rejectChallenge(id, req.user.userId);
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Rematch (#14)
+  // ──────────────────────────────────────────────────────────
+
+  @Post(':id/rematch')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a rematch from a completed or cancelled match (admin only)' })
+  rematch(@Param('id') id: string, @Request() req: any, @Body() dto: RematchDto) {
+    return this.matchesService.rematch(id, req.user.userId, dto);
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Match templates (#15)
+  // ──────────────────────────────────────────────────────────
+
+  @Post('templates')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a match template' })
+  createTemplate(@Request() req: any, @Body() dto: CreateMatchTemplateDto) {
+    return this.matchesService.createTemplate(req.user.userId, dto);
+  }
+
+  @Get('templates')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List my match templates' })
+  findMyTemplates(@Request() req: any) {
+    return this.matchesService.findMyTemplates(req.user.userId);
+  }
+
+  @Delete('templates/:templateId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a match template' })
+  deleteTemplate(@Param('templateId') templateId: string, @Request() req: any) {
+    return this.matchesService.deleteTemplate(templateId, req.user.userId);
   }
 
   // ──────────────────────────────────────────────────────────

@@ -460,6 +460,7 @@ CREATE SCHEMA IF NOT EXISTS notifications;
 DO $$ BEGIN
   CREATE TYPE notifications."NotificationType" AS ENUM (
     'MATCH_INVITATION',
+    'MATCH_JOIN_REQUESTED',
     'MATCH_JOIN_APPROVED',
     'MATCH_JOIN_REJECTED',
     'MATCH_CANCELLED',
@@ -474,6 +475,10 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- Add USER_FOLLOWED if the type already existed without it
+DO $$ BEGIN
+  ALTER TYPE notifications."NotificationType" ADD VALUE IF NOT EXISTS 'MATCH_JOIN_REQUESTED';
+EXCEPTION WHEN others THEN NULL;
+END $$;
 DO $$ BEGIN
   ALTER TYPE notifications."NotificationType" ADD VALUE IF NOT EXISTS 'USER_FOLLOWED';
 EXCEPTION WHEN others THEN NULL;
@@ -514,6 +519,39 @@ CREATE TABLE IF NOT EXISTS notifications.device_tokens (
 
 CREATE INDEX IF NOT EXISTS device_tokens_user_idx
   ON notifications.device_tokens (user_id);
+
+-- =============================================================
+-- 14. MATCHES SCHEMA — waitlist, recurrence, templates
+-- =============================================================
+
+DO $$ BEGIN
+  ALTER TYPE matches."ParticipantStatus" ADD VALUE IF NOT EXISTS 'WAITLISTED';
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+ALTER TABLE matches.matches ADD COLUMN IF NOT EXISTS recurrence_group_id TEXT;
+
+CREATE TABLE IF NOT EXISTS matches.match_templates (
+  id                TEXT        PRIMARY KEY,
+  user_id           TEXT        NOT NULL,
+  name              TEXT        NOT NULL,
+  sport_id          TEXT        NOT NULL,
+  complex_id        TEXT,
+  complex_name      TEXT,
+  court_id          TEXT,
+  max_players       INT         NOT NULL,
+  min_players       INT         NOT NULL,
+  required_level    matches."SkillLevel",
+  required_category matches."Category",
+  gender            matches."Gender",
+  description       TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+DO $$ BEGIN
+  ALTER TYPE notifications."NotificationType" ADD VALUE IF NOT EXISTS 'MATCH_WAITLIST_PROMOTED';
+EXCEPTION WHEN others THEN NULL;
+END $$;
 
 -- =============================================================
 -- SUMMARY

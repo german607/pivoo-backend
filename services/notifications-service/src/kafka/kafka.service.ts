@@ -5,7 +5,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import {
   TOPICS,
   MatchPlayerInvitedEvent,
+  MatchJoinRequestedEvent,
   MatchJoinApprovedEvent,
+  MatchWaitlistPromotedEvent,
   MatchJoinRejectedEvent,
   MatchCancelledEvent,
   MatchResultRecordedEvent,
@@ -92,6 +94,12 @@ export class KafkaService implements OnModuleDestroy {
     switch (topic) {
       case TOPICS.MATCH_PLAYER_INVITED:
         await this.notifications.handleMatchPlayerInvited(payload as MatchPlayerInvitedEvent);
+        break;
+      case TOPICS.MATCH_JOIN_REQUESTED:
+        await this.notifications.handleMatchJoinRequested(payload as MatchJoinRequestedEvent);
+        break;
+      case TOPICS.MATCH_WAITLIST_PROMOTED:
+        await this.notifications.handleMatchWaitlistPromoted(payload as MatchWaitlistPromotedEvent);
         break;
       case TOPICS.MATCH_JOIN_APPROVED:
         await this.notifications.handleMatchJoinApproved(payload as MatchJoinApprovedEvent);

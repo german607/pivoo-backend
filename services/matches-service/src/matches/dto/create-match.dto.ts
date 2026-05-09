@@ -1,9 +1,22 @@
 import {
-  IsString, IsDateString, IsInt, IsOptional, IsEnum, Min, Max,
+  IsString, IsDateString, IsInt, IsOptional, IsEnum, Min, Max, IsIn, ValidateNested, ValidateIf,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { SkillLevel } from '../../generated/prisma';
-import { Category, Gender } from '../../types/match.types';
+import { Category, Gender, MatchMode } from '../../types/match.types';
+
+export class RecurrenceDto {
+  @ApiProperty({ enum: ['WEEKLY', 'BIWEEKLY'] })
+  @IsIn(['WEEKLY', 'BIWEEKLY'])
+  type!: 'WEEKLY' | 'BIWEEKLY';
+
+  @ApiProperty({ example: 4, description: 'Total de instancias a generar (incluye la primera)' })
+  @IsInt()
+  @Min(2)
+  @Max(52)
+  count!: number;
+}
 
 export class CreateMatchDto {
   @ApiProperty()
@@ -59,4 +72,25 @@ export class CreateMatchDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiProperty({ required: false, description: 'Si se provee, crea instancias recurrentes del partido' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecurrenceDto)
+  recurrence?: RecurrenceDto;
+
+  @ApiProperty({ required: false, description: 'ID de plantilla para pre-llenar los campos' })
+  @IsOptional()
+  @IsString()
+  templateId?: string;
+
+  @ApiProperty({ enum: MatchMode, required: false, default: MatchMode.INDIVIDUAL })
+  @IsOptional()
+  @IsEnum(MatchMode)
+  mode?: MatchMode;
+
+  @ApiProperty({ required: false, description: 'ID del compañero de equipo (requerido si mode=TEAM_VS_TEAM)' })
+  @ValidateIf((o) => o.mode === MatchMode.TEAM_VS_TEAM)
+  @IsString()
+  partnerId?: string;
 }

@@ -4,10 +4,12 @@ import { Kafka, Producer, logLevel } from 'kafkajs';
 import {
   NOTIFICATION_TOPICS,
   MatchPlayerInvitedEvent,
+  MatchJoinRequestedEvent,
   MatchJoinApprovedEvent,
   MatchJoinRejectedEvent,
   MatchCancelledEvent,
   MatchResultRecordedEvent,
+  MatchWaitlistPromotedEvent,
 } from './notification-events';
 
 @Injectable()
@@ -47,6 +49,10 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
     await this.publish(NOTIFICATION_TOPICS.MATCH_PLAYER_INVITED, event.invitedUserId, event);
   }
 
+  async publishMatchJoinRequested(event: MatchJoinRequestedEvent) {
+    await this.publish(NOTIFICATION_TOPICS.MATCH_JOIN_REQUESTED, event.matchId, event);
+  }
+
   async publishMatchJoinApproved(event: MatchJoinApprovedEvent) {
     await this.publish(NOTIFICATION_TOPICS.MATCH_JOIN_APPROVED, event.userId, event);
   }
@@ -61,6 +67,10 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
 
   async publishMatchResultRecorded(event: MatchResultRecordedEvent) {
     await this.publish(NOTIFICATION_TOPICS.MATCH_RESULT_RECORDED, event.matchId, event);
+  }
+
+  async publishMatchWaitlistPromoted(event: MatchWaitlistPromotedEvent) {
+    await this.publish(NOTIFICATION_TOPICS.MATCH_WAITLIST_PROMOTED, event.matchId, event);
   }
 
   private async publish(topic: string, key: string, payload: unknown) {

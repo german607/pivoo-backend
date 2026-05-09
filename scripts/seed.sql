@@ -28,7 +28,8 @@ DO $$ BEGIN CREATE TYPE users."SkillLevel"            AS ENUM ('BEGINNER','INTER
 DO $$ BEGIN CREATE TYPE users."Category"              AS ENUM ('PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SEPTIMA','OCTAVA');                     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE sports."SportName"             AS ENUM ('TENNIS','PADEL');                                       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE matches."MatchStatus"          AS ENUM ('OPEN','FULL','IN_PROGRESS','COMPLETED','CANCELLED');    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE matches."ParticipantStatus"    AS ENUM ('PENDING','INVITED','APPROVED','REJECTED');              EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE matches."ParticipantStatus"    AS ENUM ('PENDING','INVITED','APPROVED','REJECTED','WAITLISTED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE matches."ParticipantStatus" ADD VALUE IF NOT EXISTS 'WAITLISTED'; EXCEPTION WHEN others THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE matches."ParticipantType"      AS ENUM ('REGISTERED','GUEST');                                   EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE matches."Team"                 AS ENUM ('TEAM_A','TEAM_B');                                      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE matches."SkillLevel"           AS ENUM ('BEGINNER','INTERMEDIATE','ADVANCED','PROFESSIONAL');    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -43,15 +44,17 @@ DO $$ BEGIN CREATE TYPE complexes."SkillLevel"         AS ENUM ('BEGINNER','INTE
 DO $$ BEGIN CREATE TYPE complexes."Category"           AS ENUM ('PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SEPTIMA','OCTAVA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE complexes."Gender"             AS ENUM ('MASCULINO','FEMENINO','MIXTO');                           EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-DO $$ BEGIN ALTER TYPE matches."ParticipantStatus" ADD VALUE IF NOT EXISTS 'INVITED'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE matches."ParticipantStatus" ADD VALUE IF NOT EXISTS 'INVITED';    EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE matches."ParticipantStatus" ADD VALUE IF NOT EXISTS 'WAITLISTED'; EXCEPTION WHEN others THEN NULL; END $$;
 DO $$ BEGIN
   CREATE TYPE notifications."NotificationType" AS ENUM (
-    'MATCH_INVITATION','MATCH_JOIN_APPROVED','MATCH_JOIN_REJECTED','MATCH_CANCELLED',
+    'MATCH_INVITATION','MATCH_JOIN_REQUESTED','MATCH_WAITLIST_PROMOTED','MATCH_JOIN_APPROVED','MATCH_JOIN_REJECTED','MATCH_CANCELLED',
     'MATCH_RESULT_RECORDED','TOURNAMENT_REGISTRATION_APPROVED','TOURNAMENT_REGISTRATION_REJECTED',
     'TOURNAMENT_BRACKET_GENERATED','TOURNAMENT_FINALIZED','USER_FOLLOWED'
   );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN ALTER TYPE notifications."NotificationType" ADD VALUE IF NOT EXISTS 'USER_FOLLOWED'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE notifications."NotificationType" ADD VALUE IF NOT EXISTS 'MATCH_WAITLIST_PROMOTED'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE notifications."NotificationType" ADD VALUE IF NOT EXISTS 'USER_FOLLOWED';          EXCEPTION WHEN others THEN NULL; END $$;
 
 -- =============================================================
 -- 3. TABLES
@@ -214,23 +217,41 @@ CREATE TABLE IF NOT EXISTS complexes.tournament_results (
 
 -- ── matches ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS matches.matches (
-  id             TEXT                  PRIMARY KEY,
-  sport_id       TEXT                  NOT NULL,
-  complex_id     TEXT,
-  court_id       TEXT,
-  complex_name   TEXT,
-  admin_user_id  TEXT                  NOT NULL,
-  scheduled_at   TIMESTAMPTZ           NOT NULL,
-  max_players    INT                   NOT NULL,
-  min_players    INT                   NOT NULL,
-  required_level     matches."SkillLevel",
-  required_category  matches."Category",
-  gender             matches."Gender",
-  country        TEXT,
-  status             matches."MatchStatus" NOT NULL DEFAULT 'OPEN',
-  description    TEXT,
-  created_at     TIMESTAMPTZ           NOT NULL DEFAULT NOW(),
-  updated_at     TIMESTAMPTZ           NOT NULL DEFAULT NOW()
+  id                  TEXT                  PRIMARY KEY,
+  sport_id            TEXT                  NOT NULL,
+  complex_id          TEXT,
+  court_id            TEXT,
+  complex_name        TEXT,
+  admin_user_id       TEXT                  NOT NULL,
+  scheduled_at        TIMESTAMPTZ           NOT NULL,
+  max_players         INT                   NOT NULL,
+  min_players         INT                   NOT NULL,
+  required_level      matches."SkillLevel",
+  required_category   matches."Category",
+  gender              matches."Gender",
+  country             TEXT,
+  status              matches."MatchStatus" NOT NULL DEFAULT 'OPEN',
+  description         TEXT,
+  recurrence_group_id TEXT,
+  created_at          TIMESTAMPTZ           NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ           NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS matches.match_templates (
+  id                TEXT        PRIMARY KEY,
+  user_id           TEXT        NOT NULL,
+  name              TEXT        NOT NULL,
+  sport_id          TEXT        NOT NULL,
+  complex_id        TEXT,
+  complex_name      TEXT,
+  court_id          TEXT,
+  max_players       INT         NOT NULL,
+  min_players       INT         NOT NULL,
+  required_level    matches."SkillLevel",
+  required_category matches."Category",
+  gender            matches."Gender",
+  description       TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS matches.match_participants (

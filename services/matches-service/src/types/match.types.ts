@@ -22,6 +22,11 @@ export enum Gender {
   MIXTO = 'MIXTO',
 }
 
+export enum MatchMode {
+  INDIVIDUAL = 'INDIVIDUAL',
+  TEAM_VS_TEAM = 'TEAM_VS_TEAM',
+}
+
 export enum MatchStatus {
   OPEN = 'OPEN',
   FULL = 'FULL',

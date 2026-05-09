@@ -21,10 +21,11 @@ enum MatchStatus {
 }
 
 enum ParticipantStatus {
-  PENDING    // user requested to join, awaiting admin approval
-  INVITED    // admin invited this user, awaiting acceptance
+  PENDING      // user requested to join, awaiting admin approval
+  INVITED      // admin invited this user, awaiting acceptance
   APPROVED
   REJECTED
+  WAITLISTED   // match is full, user is in the waitlist
 
   @@schema("matches")
 }
@@ -73,6 +74,13 @@ enum Gender {
   @@schema("matches")
 }
 
+enum MatchMode {
+  INDIVIDUAL
+  TEAM_VS_TEAM
+
+  @@schema("matches")
+}
+
 model Match {
   id               String      @id @default(uuid())
   sportId          String      @map("sport_id")
@@ -86,11 +94,14 @@ model Match {
   requiredLevel    SkillLevel? @map("required_level")
   requiredCategory Category?   @map("required_category")
   gender           Gender?
+  mode             MatchMode   @default(INDIVIDUAL)
   country          String?
   status           MatchStatus @default(OPEN)
   description      String?
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  recurrenceGroupId String? @map("recurrence_group_id")
 
   participants MatchParticipant[]
   result       MatchResult?
@@ -118,6 +129,26 @@ model MatchParticipant {
   // is enforced via a partial unique index created in migration:
   // CREATE UNIQUE INDEX ... ON match_participants (match_id, user_id) WHERE user_id IS NOT NULL
   @@map("match_participants")
+  @@schema("matches")
+}
+
+model MatchTemplate {
+  id               String      @id @default(uuid())
+  userId           String      @map("user_id")
+  name             String
+  sportId          String      @map("sport_id")
+  complexId        String?     @map("complex_id")
+  complexName      String?     @map("complex_name")
+  courtId          String?     @map("court_id")
+  maxPlayers       Int         @map("max_players")
+  minPlayers       Int         @map("min_players")
+  requiredLevel    SkillLevel? @map("required_level")
+  requiredCategory Category?   @map("required_category")
+  gender           Gender?
+  description      String?
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  @@map("match_templates")
   @@schema("matches")
 }
 
