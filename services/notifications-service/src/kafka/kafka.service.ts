@@ -39,6 +39,22 @@ export class KafkaService implements OnModuleDestroy {
       ssl: false,
     });
 
+    const allTopics = Object.values(TOPICS);
+
+    // Pre-create topics so the consumer doesn't fail when they don't exist yet
+    const admin = kafka.admin();
+    try {
+      await admin.connect();
+      await admin.createTopics({
+        waitForLeaders: true,
+        topics: allTopics.map((topic) => ({ topic, numPartitions: 1, replicationFactor: 1 })),
+      });
+    } catch (err) {
+      this.logger.warn('Could not pre-create topics (may already exist)', err);
+    } finally {
+      await admin.disconnect();
+    }
+
     this.consumer = kafka.consumer({
       groupId: 'notifications-service',
       sessionTimeout: 30000,
@@ -48,7 +64,6 @@ export class KafkaService implements OnModuleDestroy {
     try {
       await this.consumer.connect();
 
-      const allTopics = Object.values(TOPICS);
       for (const topic of allTopics) {
         await this.consumer.subscribe({ topic, fromBeginning: false });
       }
