@@ -20,10 +20,14 @@ import { ScheduleMatchDto } from './dto/schedule-match.dto';
 import { AssignPlayersDto } from './dto/assign-players.dto';
 import { CreateMatchDto } from './dto/create-match.dto';
 import { UpdateMatchDto } from './dto/update-match.dto';
+import { KafkaProducerService } from '../kafka/kafka-producer.service';
 
 @Injectable()
 export class TournamentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private kafka: KafkaProducerService,
+  ) {}
 
   // ─── Queries ────────────────────────────────────────────────
 
@@ -134,10 +138,16 @@ export class TournamentsService {
     if (reg.status !== RegistrationStatus.PENDING) {
       throw new BadRequestException('Registration is not pending');
     }
-    return this.prisma.tournamentRegistration.update({
+    const updated = await this.prisma.tournamentRegistration.update({
       where: { tournamentId_userId: { tournamentId, userId } },
       data: { status: RegistrationStatus.APPROVED, seed: seed ?? null },
     });
+    this.kafka.publishRegistrationApproved({
+      tournamentId,
+      tournamentName: t.name,
+      userId,
+    }).catch(() => null);
+    return updated;
   }
 
   async rejectRegistration(tournamentId: string, userId: string, complexId: string) {
@@ -145,10 +155,16 @@ export class TournamentsService {
     this.assertOwner(t, complexId);
     const reg = t.registrations.find((r) => r.userId === userId);
     if (!reg) throw new NotFoundException('Registration not found');
-    return this.prisma.tournamentRegistration.update({
+    const updated = await this.prisma.tournamentRegistration.update({
       where: { tournamentId_userId: { tournamentId, userId } },
       data: { status: RegistrationStatus.REJECTED },
     });
+    this.kafka.publishRegistrationRejected({
+      tournamentId,
+      tournamentName: t.name,
+      userId,
+    }).catch(() => null);
+    return updated;
   }
 
   async withdraw(tournamentId: string, userId: string) {
@@ -195,6 +211,13 @@ export class TournamentsService {
       }),
       this.prisma.tournamentMatch.createMany({ data: matchData }),
     ]);
+
+    const participantUserIds = approved.map((r) => r.userId);
+    this.kafka.publishBracketGenerated({
+      tournamentId,
+      tournamentName: t.name,
+      participantUserIds,
+    }).catch(() => null);
 
     return this.findOne(tournamentId);
   }
@@ -428,6 +451,15 @@ export class TournamentsService {
       }),
       this.prisma.tournamentResult.createMany({ data: results, skipDuplicates: true }),
     ]);
+
+    const participantUserIds = standings.map((s) => s.userId);
+    const winnerId = standings.find((s) => s.position === 1)?.userId ?? null;
+    this.kafka.publishTournamentFinalized({
+      tournamentId,
+      tournamentName: t.name,
+      participantUserIds,
+      winnerId,
+    }).catch(() => null);
 
     return this.findOne(tournamentId);
   }

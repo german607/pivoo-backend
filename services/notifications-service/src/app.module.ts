@@ -1,17 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { HttpModule } from '@nestjs/axios';
 import { PrismaModule } from './prisma/prisma.module';
-import { MatchesModule } from './matches/matches.module';
-import { KafkaProducerModule } from './kafka/kafka-producer.module';
+import { KafkaModule } from './kafka/kafka.module';
+import { PushModule } from './push/push.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    HttpModule,
     PrismaModule,
-    KafkaProducerModule,
-    MatchesModule,
+    PushModule,
+    KafkaModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

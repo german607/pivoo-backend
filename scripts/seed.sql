@@ -19,6 +19,7 @@ CREATE SCHEMA IF NOT EXISTS sports;
 CREATE SCHEMA IF NOT EXISTS complexes;
 CREATE SCHEMA IF NOT EXISTS matches;
 CREATE SCHEMA IF NOT EXISTS teams;
+CREATE SCHEMA IF NOT EXISTS notifications;
 
 -- =============================================================
 -- 2. ENUMS
@@ -43,6 +44,13 @@ DO $$ BEGIN CREATE TYPE complexes."Category"           AS ENUM ('PRIMERA','SEGUN
 DO $$ BEGIN CREATE TYPE complexes."Gender"             AS ENUM ('MASCULINO','FEMENINO','MIXTO');                           EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TYPE matches."ParticipantStatus" ADD VALUE IF NOT EXISTS 'INVITED'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE TYPE notifications."NotificationType" AS ENUM (
+    'MATCH_INVITATION','MATCH_JOIN_APPROVED','MATCH_JOIN_REJECTED','MATCH_CANCELLED',
+    'MATCH_RESULT_RECORDED','TOURNAMENT_REGISTRATION_APPROVED','TOURNAMENT_REGISTRATION_REJECTED',
+    'TOURNAMENT_BRACKET_GENERATED','TOURNAMENT_FINALIZED'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- =============================================================
 -- 3. TABLES
@@ -269,6 +277,36 @@ CREATE TABLE IF NOT EXISTS teams.team_invitations (
   created_at         TIMESTAMPTZ              NOT NULL DEFAULT NOW(),
   UNIQUE(team_id, invited_user_id)
 );
+
+CREATE TABLE IF NOT EXISTS notifications.notifications (
+  id         TEXT                              PRIMARY KEY,
+  user_id    TEXT                              NOT NULL,
+  type       notifications."NotificationType" NOT NULL,
+  title      TEXT                              NOT NULL,
+  body       TEXT                              NOT NULL,
+  data       JSONB,
+  read       BOOLEAN                           NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ                       NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS notifications_user_read_idx    ON notifications.notifications (user_id, read);
+CREATE INDEX IF NOT EXISTS notifications_user_created_idx ON notifications.notifications (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS notifications.notification_preferences (
+  id      TEXT                              PRIMARY KEY,
+  user_id TEXT                              NOT NULL,
+  type    notifications."NotificationType" NOT NULL,
+  enabled BOOLEAN                           NOT NULL DEFAULT TRUE,
+  UNIQUE (user_id, type)
+);
+
+CREATE TABLE IF NOT EXISTS notifications.device_tokens (
+  id         TEXT        PRIMARY KEY,
+  user_id    TEXT        NOT NULL,
+  token      TEXT        NOT NULL UNIQUE,
+  platform   TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS device_tokens_user_idx ON notifications.device_tokens (user_id);
 
 -- =============================================================
 -- 4. SEED DATA

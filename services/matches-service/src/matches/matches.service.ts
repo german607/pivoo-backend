@@ -14,6 +14,7 @@ import { RecordResultDto } from './dto/record-result.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { AddGuestDto } from './dto/add-guest.dto';
 import { MatchStatus, ParticipantStatus, ParticipantType, Team } from '../generated/prisma';
+import { KafkaProducerService } from '../kafka/kafka-producer.service';
 
 @Injectable()
 export class MatchesService {
@@ -23,6 +24,7 @@ export class MatchesService {
     private prisma: PrismaService,
     private http: HttpService,
     private config: ConfigService,
+    private kafka: KafkaProducerService,
   ) {
     this.usersServiceUrl = this.config.get('USERS_SERVICE_URL') ?? 'http://users-service:3002';
   }
@@ -176,10 +178,22 @@ export class MatchesService {
     if (match.status === MatchStatus.COMPLETED || match.status === MatchStatus.CANCELLED) {
       throw new BadRequestException('Match cannot be cancelled');
     }
-    return this.prisma.match.update({
+    const updated = await this.prisma.match.update({
       where: { id: matchId },
       data: { status: MatchStatus.CANCELLED },
     });
+
+    const participantUserIds = match.participants
+      .filter((p) => p.status === ParticipantStatus.APPROVED && p.userId && p.userId !== adminUserId)
+      .map((p) => p.userId as string);
+    this.kafka.publishMatchCancelled({
+      matchId,
+      participantUserIds,
+      scheduledAt: match.scheduledAt.toISOString(),
+      sportId: match.sportId,
+    }).catch(() => null);
+
+    return updated;
   }
 
   // ──────────────────────────────────────────────────────────
@@ -242,6 +256,18 @@ export class MatchesService {
 
     if (approve) {
       await this.syncMatchFullStatus(matchId, match.maxPlayers);
+      this.kafka.publishMatchJoinApproved({
+        matchId,
+        userId: participantUserId,
+        scheduledAt: match.scheduledAt.toISOString(),
+        sportId: match.sportId,
+      }).catch(() => null);
+    } else {
+      this.kafka.publishMatchJoinRejected({
+        matchId,
+        userId: participantUserId,
+        sportId: match.sportId,
+      }).catch(() => null);
     }
 
     return updated;
@@ -272,7 +298,7 @@ export class MatchesService {
 
     await this.assertSlotAvailable(matchId, match.maxPlayers);
 
-    return this.prisma.matchParticipant.create({
+    const record = await this.prisma.matchParticipant.create({
       data: {
         matchId,
         userId: dto.userId,
@@ -281,6 +307,15 @@ export class MatchesService {
         team: dto.team ?? null,
       },
     });
+
+    this.kafka.publishMatchPlayerInvited({
+      matchId,
+      invitedUserId: dto.userId,
+      scheduledAt: match.scheduledAt.toISOString(),
+      sportId: match.sportId,
+    }).catch(() => null);
+
+    return record;
   }
 
   async acceptInvite(matchId: string, userId: string) {
@@ -468,8 +503,19 @@ export class MatchesService {
       }),
     ]);
 
-    // Only notify stats for REGISTERED participants (guests are excluded)
     await this.notifyUsersServiceForStats(matchId, dto.winnerTeam, match.sportId);
+
+    const participants = await this.prisma.matchParticipant.findMany({
+      where: { matchId, status: ParticipantStatus.APPROVED, participantType: ParticipantType.REGISTERED, userId: { not: null } },
+      select: { userId: true },
+    });
+    this.kafka.publishMatchResultRecorded({
+      matchId,
+      participantUserIds: participants.map((p) => p.userId as string),
+      winnerTeam: dto.winnerTeam,
+      sportId: match.sportId,
+    }).catch(() => null);
+
     return result;
   }
 

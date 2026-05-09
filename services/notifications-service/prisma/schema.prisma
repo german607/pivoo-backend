@@ -1,0 +1,64 @@
+generator client {
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/prisma"
+  provider        = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["notifications"]
+}
+
+enum NotificationType {
+  MATCH_INVITATION
+  MATCH_JOIN_APPROVED
+  MATCH_JOIN_REJECTED
+  MATCH_CANCELLED
+  MATCH_RESULT_RECORDED
+  TOURNAMENT_REGISTRATION_APPROVED
+  TOURNAMENT_REGISTRATION_REJECTED
+  TOURNAMENT_BRACKET_GENERATED
+  TOURNAMENT_FINALIZED
+
+  @@schema("notifications")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, read])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+  @@schema("notifications")
+}
+
+model NotificationPreference {
+  id      String           @id @default(uuid())
+  userId  String           @map("user_id")
+  type    NotificationType
+  enabled Boolean          @default(true)
+
+  @@unique([userId, type])
+  @@map("notification_preferences")
+  @@schema("notifications")
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("device_tokens")
+  @@schema("notifications")
+}

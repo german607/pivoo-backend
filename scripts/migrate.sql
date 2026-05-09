@@ -438,6 +438,63 @@ BEGIN
 END $$;
 
 -- =============================================================
+-- 12. NOTIFICATIONS SCHEMA
+-- =============================================================
+
+CREATE SCHEMA IF NOT EXISTS notifications;
+
+DO $$ BEGIN
+  CREATE TYPE notifications."NotificationType" AS ENUM (
+    'MATCH_INVITATION',
+    'MATCH_JOIN_APPROVED',
+    'MATCH_JOIN_REJECTED',
+    'MATCH_CANCELLED',
+    'MATCH_RESULT_RECORDED',
+    'TOURNAMENT_REGISTRATION_APPROVED',
+    'TOURNAMENT_REGISTRATION_REJECTED',
+    'TOURNAMENT_BRACKET_GENERATED',
+    'TOURNAMENT_FINALIZED'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS notifications.notifications (
+  id         TEXT                              PRIMARY KEY,
+  user_id    TEXT                              NOT NULL,
+  type       notifications."NotificationType" NOT NULL,
+  title      TEXT                              NOT NULL,
+  body       TEXT                              NOT NULL,
+  data       JSONB,
+  read       BOOLEAN                           NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ                       NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS notifications_user_read_idx
+  ON notifications.notifications (user_id, read);
+
+CREATE INDEX IF NOT EXISTS notifications_user_created_idx
+  ON notifications.notifications (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS notifications.notification_preferences (
+  id      TEXT                              PRIMARY KEY,
+  user_id TEXT                              NOT NULL,
+  type    notifications."NotificationType" NOT NULL,
+  enabled BOOLEAN                           NOT NULL DEFAULT TRUE,
+  UNIQUE (user_id, type)
+);
+
+CREATE TABLE IF NOT EXISTS notifications.device_tokens (
+  id         TEXT        PRIMARY KEY,
+  user_id    TEXT        NOT NULL,
+  token      TEXT        NOT NULL UNIQUE,
+  platform   TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS device_tokens_user_idx
+  ON notifications.device_tokens (user_id);
+
+-- =============================================================
 -- SUMMARY
 -- =============================================================
 DO $$
@@ -447,6 +504,7 @@ DECLARE
   has_tourns     BOOLEAN;
   has_req_cat    BOOLEAN;
   has_gender     BOOLEAN;
+  has_notifs     BOOLEAN;
 BEGIN
   SELECT EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -468,6 +526,10 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'matches' AND table_name = 'matches' AND column_name = 'gender'
   ) INTO has_gender;
-  RAISE NOTICE '✓ Migration done — auth_users.refresh_token_hash: %, complex_accounts: %, tournaments: %, matches.required_category: %, matches.gender: %',
-    has_rth, has_complex_ac, has_tourns, has_req_cat, has_gender;
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'notifications' AND table_name = 'notifications'
+  ) INTO has_notifs;
+  RAISE NOTICE '✓ Migration done — auth_users.refresh_token_hash: %, complex_accounts: %, tournaments: %, matches.required_category: %, matches.gender: %, notifications: %',
+    has_rth, has_complex_ac, has_tourns, has_req_cat, has_gender, has_notifs;
 END $$;
