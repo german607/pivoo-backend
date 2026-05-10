@@ -1,5 +1,5 @@
 import {
-  IsString, IsDateString, IsInt, IsOptional, IsEnum, Min, Max, IsIn, ValidateNested, ValidateIf,
+  IsString, IsDateString, IsInt, IsOptional, IsEnum, Min, Max, IsIn, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -89,8 +89,8 @@ export class CreateMatchDto {
   @IsEnum(MatchMode)
   mode?: MatchMode;
 
-  @ApiProperty({ required: false, description: 'ID del compañero de equipo (requerido si mode=TEAM_VS_TEAM)' })
-  @ValidateIf((o) => o.mode === MatchMode.TEAM_VS_TEAM)
+  @ApiProperty({ required: false, description: 'ID del compañero de equipo (opcional en modo TEAM_VS_TEAM)' })
+  @IsOptional()
   @IsString()
   partnerId?: string;
 }
