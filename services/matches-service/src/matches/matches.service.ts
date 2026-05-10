@@ -41,9 +41,10 @@ export class MatchesService {
   async findMine(userId: string) {
     return this.prisma.match.findMany({
       where: {
-        participants: {
-          some: { userId, status: ParticipantStatus.APPROVED },
-        },
+        OR: [
+          { adminUserId: userId },
+          { participants: { some: { userId, status: ParticipantStatus.APPROVED } } },
+        ],
       },
       include: {
         participants: {
@@ -56,6 +57,9 @@ export class MatchesService {
             guestLastName: true,
             team: true,
           },
+        },
+        _count: {
+          select: { participants: { where: { status: ParticipantStatus.APPROVED } } },
         },
         result: true,
       },
